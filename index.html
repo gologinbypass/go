@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go Login Bypass - REDSTAR</title>
+<style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0a0a0a; color: #fff; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
+    .tab { overflow: hidden; border: 1px solid #333; background-color: #151515; width: 100%; max-width: 420px; border-radius: 10px 10px 0 0; }
+    .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; font-size: 14px; color: #888; font-weight: bold; width: 50%; }
+    .tab button:hover { background-color: #222; }
+    .tab button.active { background-color: #151515; color: #00ff88; border-bottom: 2px solid #00ff88; }
+    .tabcontent { display: none; padding: 20px; border: 1px solid #333; border-top: none; width: 100%; max-width: 420px; background-color: #151515; border-radius: 0 0 10px 10px; box-sizing: border-box; }
+    .field { margin-bottom: 12px; }
+    label { font-size: 11px; color: #888; margin-bottom: 4px; display: inline-block; text-transform: uppercase; }
+    .input-wrapper { position: relative; width: 100%; }
+    input, select { width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #0f0; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 14px; }
+    input:focus { border-color: #00ff88; }
+    .btn-copy { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: #333; border: none; color: white; padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+    .btn-group { display: flex; gap: 8px; margin-top: 15px; }
+    button.action-btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; text-transform: uppercase; }
+    #regSubmitBtn { background: #ff4d4d; color: #fff; }
+    #profSubmitBtn { background: #00ff88; color: #000; height: 42px; width: 100%; margin-top: 10px; }
+    #resetBtn { background: #444; color: #fff; }
+    iframe { width: 100%; height: 65px; border: 1px solid #00ff88; border-radius: 8px; margin-top: 5px; background: #fff; }
+    #profStatus { text-align: center; margin-top: 10px; font-weight: bold; font-size: 13px; color: #00ff88; }
+    pre { background: #000; color: #0f0; font-size: 11px; padding: 10px; border-radius: 8px; overflow-x: auto; margin-top: 12px; border: 1px solid #222; max-height: 150px; line-height: 1.4; }
+    .ua-info { font-size: 9px; color: #444; word-break: break-all; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="tab">
+  <button class="tablinks" onclick="openCity(event, 'Registration')" id="defaultOpen">ACCOUNTS</button>
+  <button class="tablinks" onclick="openCity(event, 'Profiles')">PROFILES</button>
+</div>
+
+<div id="Registration" class="tabcontent">
+  <div class="field">
+      <label>Email</label>
+      <div class="input-wrapper">
+          <input type="text" id="regEmail">
+          <button class="btn-copy" onclick="copy('regEmail')">Copy</button>
+      </div>
+  </div>
+  <div class="field">
+      <label>Password</label>
+      <div class="input-wrapper">
+          <input type="text" id="regPass">
+          <button class="btn-copy" onclick="copy('regPass')">Copy</button>
+      </div>
+  </div>
+  <div class="field">
+      <label>Access Token</label>
+      <div class="input-wrapper">
+          <input type="text" id="regToken" readonly placeholder="Waiting...">
+          <button class="btn-copy" onclick="copy('regToken')">Copy</button>
+      </div>
+  </div>
+  <label>Solve Captcha:</label>
+  <iframe src="https://captcha.gologin.com/" id="captchaFrame"></iframe>
+  <div class="btn-group">
+      <button id="regSubmitBtn" class="action-btn" onclick="doReg()" disabled>SOLVE CAPTCHA</button>
+      <button id="resetBtn" class="action-btn" onclick="location.reload()">RESET</button>
+  </div>
+  <div class="ua-info" id="uaDisplay">UA: Loading...</div>
+</div>
+
+<div id="Profiles" class="tabcontent">
+    <div class="field">
+        <label>Access Token</label>
+        <input type="text" id="profToken" placeholder="Paste Token">
+    </div>
+    <div class="field">
+        <label>Profile Count</label>
+        <select id="profileCount">
+            <option value="1">1 Profiles</option>
+            <option value="2">2 Profiles</option>
+            <option value="3">3 Profiles</option>
+            <option value="4">4 Profiles</option>
+            <option value="5">5 Profiles</option>
+            <option value="6">6 Profiles</option>
+            <option value="7">7 Profiles</option>
+            <option value="8">8 Profiles</option>
+            <option value="9">9 Profiles</option>
+            <option value="10">10 Profiles</option>
+        </select>
+    </div>
+    <button id="profSubmitBtn" class="action-btn" onclick="doProfile()">Start Creating</button>
+    <div id="profStatus"></div>
+    <pre id="profLog" style="display:none;"></pre>
+</div>
+
+<script>
+// --- JavaScript Logic (Ported from PHP) ---
+
+function generateMobileUA() {
+    const androidVersions = ['10', '11', '12', '13', '14'];
+    const models = ['Pixel 6', 'Pixel 7', 'SM-G991B', 'SM-S901B', 'KB2003', 'M2101K6G'];
+    const chromeVersions = Math.floor(Math.random() * (122 - 110 + 1) + 110) + ".0." + 
+                           Math.floor(Math.random() * (6000 - 5000 + 1) + 5000) + "." + 
+                           Math.floor(Math.random() * (200 - 100 + 1) + 100);
+    const ver = androidVersions[Math.floor(Math.random() * androidVersions.length)];
+    const mod = models[Math.floor(Math.random() * models.length)];
+    return `Mozilla/5.0 (Linux; Android ${ver}; ${mod}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersions} Mobile Safari/537.36`;
+}
+
+function generateRandomCreds() {
+    const prefix = Math.random().toString(36).substring(2, 10);
+    const num = Math.floor(1111 + Math.random() * 88888);
+    return `${prefix}${num}@gmail.com`;
+}
+
+// Global Variables
+const activeUA = generateMobileUA();
+const generatedEmail = generateRandomCreds();
+let solvedToken = "";
+
+// Page Init
+document.getElementById('uaDisplay').innerText = "UA: " + activeUA;
+document.getElementById('regEmail').value = generatedEmail;
+document.getElementById('regPass').value = generatedEmail;
+
+// --- Tab Navigation Logic ---
+function openCity(evt, cityName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(cityName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+document.getElementById("defaultOpen").click();
+
+function copy(id) {
+    const el = document.getElementById(id);
+    el.select();
+    document.execCommand('copy');
+}
+
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'captcha-result') {
+        solvedToken = e.data.message.captchaToken;
+        const btn = document.getElementById('regSubmitBtn');
+        btn.disabled = false;
+        btn.innerText = "REGISTER NOW";
+        btn.style.background = "#00ff88";
+        btn.style.color = "#000";
+    }
+});
+
+// --- Registration Logic (Now calling API directly) ---
+async function doReg() {
+    const btn = document.getElementById('regSubmitBtn');
+    const email = document.getElementById('regEmail').value;
+    const pass = document.getElementById('regPass').value;
+    btn.disabled = true;
+    btn.innerText = "SENDING...";
+
+    const payload = {
+        "localGoogleClientId": "",
+        "email": email,
+        "passwordConfirm": pass,
+        "password": pass,
+        "captchaToken": solvedToken,
+        "googleClientId": "",
+        "fromApp": false,
+        "fromAppTrue": false,
+        "canvasAndFontsHash": Math.random().toString(16).substring(2, 18), 
+        "affiliate": "",
+        "fontsHash": Math.random().toString(16).substring(2, 18), 
+        "userOs": "android", 
+        "resolution": "360x800", 
+        "registrationLead": { "url": "app.gologin.com/sign_up" },
+        "canvasHash": "-" + Math.floor(100000000 + Math.random() * 900000000),
+        "userAgent": activeUA
+    };
+
+    try {
+        const res = await fetch("https://api.gologin.com/user?free-plan=true&registerAs=workspaces", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': '*/*'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.token) {
+            document.getElementById('regToken').value = data.token;
+            document.getElementById('profToken').value = data.token;
+            btn.innerText = "SUCCESS!";
+        } else {
+            btn.innerText = "FAILED: " + (data.message || "Error");
+            btn.disabled = false;
+        }
+    } catch (e) {
+        btn.innerText = "CORS ERROR";
+        btn.disabled = false;
+        console.error(e);
+    }
+}
+
+// --- Profile Logic ---
+const basePayload = {"name":"RED STAR 650","notes":"","browserType":"chrome","canBeRunning":true,"os":"android","osSpec":"","startUrl":"chrome://extensions","autoLang":false,"bookmarks":{"bookmark_bar":{"children":[],"date_added":"13398159217470826","date_last_used":"0","date_modified":"13398159217470827","guid":"0bc5d13f-2cba-5d74-951f-3f233fe6c908","id":"1","name":"बुकमार्क बार","type":"folder"},"other":{"children":[],"date_added":"13398159217470829","date_last_used":"0","date_modified":"13398159217470829","guid":"82b081ec-3dd3-529c-8475-ab6c344590dd","id":"2","name":"अन्य बुकमार्क","type":"folder"},"synced":{"children":[],"date_added":"13398159217470830","date_last_used":"0","date_modified":"13398159217470830","guid":"4cf2e351-0e85-532b-bb37-df045d8f8d0f","id":"3","name":"मोबाइल बुकमार्क","type":"folder"}},"googleServicesEnabled":false,"isBookmarksSynced":true,"launchArguments":"","lockEnabled":false,"debugMode":null,"navigator":{"userAgent":"Mozilla/5.0 (Linux; Android 13; ZTAB10 Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/135.0.7049.41 Safari/537.36","resolution":"1280x800","language":"en-US,en;q=0.9","platform":"aarch64","hardwareConcurrency":8,"doNotTrack":false,"deviceMemory":8,"maxTouchPoints":5},"storage":{"local":false,"extensions":false,"bookmarks":false,"history":false,"passwords":false,"session":false,"indexedDb":false,"enableExternalExtensions":false},"proxyEnabled":false,"autoProxyServer":"","autoProxyUsername":"","autoProxyPassword":"","proxy":{"mode":"none","host":"","port":80,"username":"","password":"","autoProxyRegion":"us","torProxyRegion":"us"},"dns":"","plugins":{"enableVulnerable":false,"enableFlash":true},"timezone":{"enabled":true,"fillBasedOnIp":true,"timezone":""},"geolocation":{"mode":"block","enabled":true,"customize":true,"fillBasedOnIp":true,"latitude":0,"longitude":0,"accuracy":10,"isCustomCoordinates":false},"audioContext":{"mode":"off","noise":7.747914104647e-8},"canvas":{"mode":"off","noise":0.97967407},"fonts":{"enableMasking":true,"enableDomRect":true,"families":["Arial","Courier","Courier New","Georgia","Helvetica","Monaco","Palatino","Tahoma","Times","Times New Roman","Verdana","Baskerville"]},"mediaDevices":{"enableMasking":false,"uid":"0bff2c32e4f248988b34cf308940a257d9a806b5e48644539fba446f53","videoInputs":0,"audioInputs":0,"audioOutputs":0},"webRTC":{"enable":false,"isEmptyIceList":true,"mode":"disabled","enabled":true,"customize":true,"localIpMasking":false,"fillBasedOnIp":true,"publicIp":"","localIps":[]},"webGL":{"mode":"off","getClientRectsNoise":2.73985,"noise":15.789},"clientRects":{"mode":"off","noise":2.73985},"webGLMetadata":{"mode":"mask","vendor":"Imagination Technologies","renderer":"PowerVR SGX Clark"},"extensions":{"enabled":true,"preloadCustom":true,"names":[]},"devicePixelRatio":1,"checkCookies":true,"chromeExtensions":[],"userChromeExtensions":[],"permissions":{"transferProfile":true,"transferToMyWorkspace":true,"shareProfile":true,"manageFolders":true,"editProfile":true,"deleteProfile":true,"cloneProfile":true,"exportProfile":true,"updateUA":true,"addVpnUfoProxy":true,"runProfile":true,"runProfileWeb":true,"viewProfile":true,"addProfileTag":true,"removeProfileTag":true,"viewShareLinks":true,"createShareLinks":true,"updateShareLinks":true,"deleteShareLinks":true,"viewCustomExtensions":true}};
+
+async function doProfile() {
+    const token = document.getElementById('profToken').value.trim();
+    const count = parseInt(document.getElementById('profileCount').value);
+    const log = document.getElementById('profLog');
+    const btn = document.getElementById('profSubmitBtn');
+
+    if(!token) { alert("Token missing!"); return; }
+
+    btn.disabled = true;
+    log.style.display = "block";
+    log.innerHTML = "";
+
+    for(let i=1; i<=count; i++) {
+        const pName = `REDSTAR ${Math.floor(Math.random() * 9999)}`;
+        let payload = JSON.parse(JSON.stringify(basePayload));
+        payload.name = pName;
+
+        try {
+            const res = await fetch('https://api.gologin.com/browser', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            log.innerHTML += res.ok ? `✅ Success: ${pName}\n` : `❌ Failed: ${pName}\n`;
+        } catch(e) {
+            log.innerHTML += `⚠️ Error: ${pName}\n`;
+        }
+        log.scrollTop = log.scrollHeight;
+    }
+    btn.disabled = false;
+}
+</script>
+
+</body>
+</html>
