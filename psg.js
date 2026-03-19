@@ -21,9 +21,9 @@
     ];
 
     const BOOKING_DETAILS = {
-        trainNumber: "12321",   
+        trainNumber: "13307",   
         classCode: "SL",        
-        quota: "PREMIUM TATKAL",        
+        quota: "GENERAL",        
         ACTime: "10:00:00",
         SLTime: "11:00:00",
         GNTime: "08:00:00"
