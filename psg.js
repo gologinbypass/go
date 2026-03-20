@@ -4,7 +4,6 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started in Smart Mode!");
 
     // ============================================================
     // 0. LOGIN CREDENTIALS, BOOKING & PASSENGER DETAILS
@@ -21,6 +20,9 @@
     ];
 
     const BOOKING_DETAILS = {
+        fromStation: "KQR ",      // <-- ADDED: From Station
+        toStation: "LDH ",        // <-- ADDED: To Station
+        date: "20/04/2026",      // <-- ADDED: Journey Date
         trainNumber: "13307",   
         classCode: "SL",        
         quota: "GENERAL",        
@@ -49,6 +51,8 @@
     window.captchaSolved = false;
     window.loginExecuted = false;
     window.passengerFilled = false; 
+    window.paymentExecuted = false; 
+    window.journeyDetailsFilled = false; // <-- ADDED for Journey Phase
 
     // ============================================================
     // 1. HELPER FUNCTIONS & STEALTH ENGINES
@@ -147,6 +151,27 @@
         element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
     }
 
+    // SPECIAL TYPING - Bina 'blur' ke jisse Station Dropdown gayab na ho
+    async function typeForAutoComplete(element, value) {
+        if (!element) return;
+        element.focus();
+        element.dispatchEvent(new Event('focus', { bubbles: true }));
+        element.click();
+        
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        nativeSetter.call(element, '');
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        for (let i = 0; i < value.length; i++) {
+            nativeSetter.call(element, element.value + value[i]);
+            element.dispatchEvent(new KeyboardEvent('keydown', { key: value[i], bubbles: true }));
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            element.dispatchEvent(new KeyboardEvent('keyup', { key: value[i], bubbles: true }));
+            await sleep(40 + Math.random() * 20); 
+        }
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
     async function humanClick(el) {
         if (!el) return;
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
@@ -155,6 +180,15 @@
         await sleep(30);
         el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         el.click(); 
+    }
+
+    // XPath helper specific for JSON Selectors
+    function getElementByXPath(xpath) {
+        try {
+            return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        } catch (e) {
+            return null;
+        }
     }
 
     function startAntiIdle() {
@@ -174,7 +208,7 @@
         const { username, password } = LOGIN_CREDENTIALS;
         if (!username || !password) return;
 
-        updateReqStatus("EXECUTING RECORDER LOGIN...", "BOT");
+        
 
         const hamburger = document.querySelector('div.moblogo > a > i');
         if (hamburger && !document.querySelector('app-login')) {
@@ -213,7 +247,7 @@
         const captchaImg = document.querySelector('app-login .captcha-img');
         
         if (captchaImg && captchaInput) {
-            updateReqStatus("SOLVING LOGIN CAPTCHA...", "BOT");
+            
             let retries = 0;
             while (retries < 20 && captchaImg.src.length < 100) {
                 await sleep(200);
@@ -227,12 +261,171 @@
 
         const signInBtn = document.querySelector('app-login button[type="submit"]') || Array.from(document.querySelectorAll('app-login button')).find(b => b.innerText && b.innerText.includes('SIGN IN'));
         if (signInBtn) {
-            updateReqStatus("CLICKING SIGN IN...", "BOT");
+            
             await humanClick(signInBtn);
             await sleep(2000); 
         }
 
         window.loginExecuted = true;
+    }
+
+    // ============================================================
+    // STRICT JSON REPLAY: JOURNEY DETAILS PHASE
+    // ============================================================
+    async function executeJourneyDetailsPhase() {
+        if (window.journeyDetailsFilled) return;
+        
+        const originInput = await waitFor('form > div:nth-of-type(2) > div:nth-of-type(1) input', 15000) || await waitFor('#origin input', 5000);
+        if (!originInput) return;
+
+        
+        await sleep(1000);
+
+        // First close any "Last Transaction Detail" popup to ensure clear view
+        const allPrimaryBtns = document.querySelectorAll('button.btn.btn-primary');
+        for (const btn of allPrimaryBtns) {
+            if (btn.innerText.trim().toUpperCase() === "CLOSE" || (btn.getAttribute('aria-label') && btn.getAttribute('aria-label').includes('Last Transaction Detail'))) {
+                await humanClick(btn);
+                await sleep(500); 
+                break;
+            }
+        }
+        await waitForSpinner();
+
+        // ---------------------------------------------------------
+        // JSON STEP 1: Click "Minimize chat" (PC & Mobile Safe)
+        // ---------------------------------------------------------
+        try {
+            let minimizeIcon = document.querySelector('#minimiseIconx') || getElementByXPath('//*[@id="minimiseIconx"]');
+            if (minimizeIcon && minimizeIcon.offsetParent !== null) {
+                await humanClick(minimizeIcon);
+                await sleep(300);
+            }
+        } catch(e) {}
+
+        // ---------------------------------------------------------
+        // JSON STEP 2 & 3: Click 'From' Input and Type Value
+        // ---------------------------------------------------------
+        let fromEl = document.querySelector('form > div:nth-of-type(2) > div:nth-of-type(1) input') || document.querySelector('#origin input');
+        if (fromEl) {
+            await humanClick(fromEl); // JSON Click
+            await sleep(400);
+            await typeForAutoComplete(fromEl, BOOKING_DETAILS.fromStation); // Type WITHOUT Blur
+            await sleep(1500); 
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 4: Click Highlighted Option
+        // ---------------------------------------------------------
+        let fromOpt = await waitFor('#p-highlighted-option > span', 5000);
+        if (fromOpt) {
+            await humanClick(fromOpt);
+            await sleep(600);
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 5 & 6: Click 'To' Input and Type Value
+        // ---------------------------------------------------------
+        let toEl = document.querySelector('#divMain div:nth-of-type(2) > div:nth-of-type(2) input') || document.querySelector('#destination input');
+        if (toEl) {
+            await humanClick(toEl); // JSON Click
+            await sleep(400);
+            await typeForAutoComplete(toEl, BOOKING_DETAILS.toStation); // Type WITHOUT Blur
+            await sleep(1500); 
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 7: Click Highlighted Option
+        // ---------------------------------------------------------
+        let toOpt = await waitFor('#p-highlighted-option > span', 5000);
+        if (toOpt) {
+            await humanClick(toOpt);
+            await sleep(600);
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 8: Click 'Journey Date' Input
+        // ---------------------------------------------------------
+        let dateEl = document.querySelector('div:nth-of-type(3) > div:nth-of-type(1) input') || document.querySelector('#jDate input');
+        if (dateEl) {
+            await humanClick(dateEl); // JSON Click
+            await sleep(800);
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 9 & 10: Click 'Next Arrow' till Month Matches
+        // ---------------------------------------------------------
+        const calendarTable = await waitFor('table.ui-datepicker-calendar', 3000);
+        if (calendarTable) {
+            const [tDay, tMonth, tYear] = BOOKING_DETAILS.date.split('/');
+            const monthNames =["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const targetMonthName = monthNames[parseInt(tMonth, 10) - 1];
+
+            let maxClicks = 12;
+            while (maxClicks > 0) {
+                const titleEl = document.querySelector('.ui-datepicker-title');
+                if (!titleEl) break;
+                
+                if (titleEl.innerText.includes(targetMonthName) && titleEl.innerText.includes(tYear)) {
+                    break;
+                }
+                
+                // JSON Click: a.ui-datepicker-next > span
+                let nextBtn = document.querySelector('a.ui-datepicker-next > span') || document.querySelector('.ui-datepicker-next');
+                if (nextBtn) { 
+                    await humanClick(nextBtn); 
+                    await sleep(400); 
+                } else {
+                    break;
+                }
+                maxClicks--;
+            }
+
+            // ---------------------------------------------------------
+            // JSON STEP 11: Click Exact Date
+            // ---------------------------------------------------------
+            const days = document.querySelectorAll('p-calendar .ui-datepicker-calendar a');
+            for (const day of days) {
+                if (day.innerText.trim() === parseInt(tDay, 10).toString()) {
+                    await humanClick(day);
+                    await sleep(500);
+                    break;
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 12: Click Quota Dropdown
+        // ---------------------------------------------------------
+        let quotaDrop = document.querySelector('#journeyQuota > div');
+        if (quotaDrop) {
+            await humanClick(quotaDrop);
+            await sleep(800);
+            
+            // ---------------------------------------------------------
+            // JSON STEP 13: Click Specific Quota Option
+            // ---------------------------------------------------------
+            let quotaItems = document.querySelectorAll('p-dropdownitem li span, ul.ui-dropdown-items li span');
+            for (let item of quotaItems) {
+                if (item.innerText.trim().toUpperCase() === BOOKING_DETAILS.quota.toUpperCase()) {
+                    await humanClick(item);
+                    await sleep(500);
+                    break;
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // JSON STEP 14: Click Search Trains Button
+        // ---------------------------------------------------------
+        let searchBtn = document.querySelector('div.tbis-box > div:nth-of-type(1) button') || document.querySelector('button.search_btn.train_Search');
+        if (searchBtn) {
+            
+            await humanClick(searchBtn);
+            await sleep(1000);
+            await waitForSpinner();
+            window.journeyDetailsFilled = true; // Mark as done!
+        }
     }
 
     // ============================================================
@@ -246,14 +439,43 @@
         const container = document.createElement('div');
         container.id = 'bmw-status-container';
         container.innerHTML = `
-            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.85); padding: 12px; border-radius: 8px; font-family: 'Courier New', Courier, monospace; border: 2px solid #555; width: 220px; box-shadow: 0px 0px 15px rgba(0,0,0,0.8); backdrop-filter: blur(5px); text-align: center;">
-                <div id="bmw-bot-mode" style="font-size: 24px; font-weight: bold; color: #00ff00; letter-spacing: 2px; text-shadow: 0px 0px 8px #00ff00;">BOT</div>
-                <div id="bmw-countdown-box" style="display: none; margin-top: 10px; border-top: 1px dashed #777; padding-top: 8px;">
-                    <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold;"></div>
-                    <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 5px rgba(255,23,68,0.5); letter-spacing: 1px;">00:00:00</div>
-                </div>
-                <div id="bmw-current-status" style="font-size: 12px; font-weight: bold; margin-top: 10px; color: #fff; word-wrap: break-word; border-top: 1px dashed #777; padding-top: 8px;">Waiting...</div>
-            </div>
+<div id="bmw-overlay-container" style="
+    position: fixed; 
+    top: 15px; 
+    right: 15px; 
+    z-index: 9999998; 
+    background: rgba(0, 0, 0, 0.9); /* Original black background */
+    padding: 8px 10px; 
+    border-radius: 5px; /* Perfect Capsule shape jaisa image mein hai */
+    font-family: 'Courier New', Courier, monospace; 
+    border: 3px solid #ff007f; /* Image jaisa bright pink/magenta border */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0px 0px 15px rgba(255, 0, 127, 0.4); /* Pinkish glow */
+    backdrop-filter: blur(5px);
+">
+    <div id="bmw-bot-mode" style="
+        font-size: 12px; 
+        font-weight: bold; 
+        color: #fff; 
+        letter-spacing: 1px;
+    ">KTM</div>
+
+    ||
+
+    <div id="bmw-current-status" style="
+        font-size: 12px; 
+        color: #fff;
+    ">RED STAR</div>
+    ||
+    <div id="bmw-countdown-time" style="         
+        font-size: 12px; 
+        font-weight: bold; 
+        color: #fff;
+    ">EDISON</div>
+</div>
         `;
         target.appendChild(container);
     }
@@ -275,8 +497,8 @@
 
         if (countdownBox && countdownTitle) {
             countdownBox.style.display = 'block';
-            countdownTitle.innerText = `Pending till ${targetTimeStr}`;
-            updateReqStatus("WAITING FOR BOOKING TIME...", "BOT");
+            countdownTitle.innerText = `${targetTimeStr}`;
+            
         }
 
         while (true) {
@@ -396,7 +618,7 @@
             }
         }
 
-        updateReqStatus("CLICKING REFRESH...", "BOT");
+        
         let booked = false;
 
         const initialBoxes = foundTrainBlock.querySelectorAll('div.pre-avl');
@@ -438,7 +660,7 @@
             let retryCount = 0;
             while (retryCount < 250 && !booked && window.location.href.includes('train-list')) {
                 retryCount++;
-                updateReqStatus(`TRYING BOOKING (${retryCount})`, "BOT");
+                
 
                 const activeBoxes = foundTrainBlock.querySelectorAll('div.pre-avl');
                 for (const box of activeBoxes) {
@@ -472,30 +694,34 @@
 
         if(booked) {
             window.trainBooked = true;
-            updateReqStatus("BOOKED! GOING TO PASSENGER PAGE...", "BOT");
+            
         }
     }
 
     // ============================================================
-    // RECORDER-REPLAY: PASSENGER FILLING PHASE
+    // RECORDER-REPLAY: PASSENGER FILLING PHASE 
     // ============================================================
     async function executePassengerPhase() {
         if (window.passengerFilled) return;
-        updateReqStatus("FILLING PASSENGER DETAILS...", "BOT");
+        
 
         // Wait for passenger component
         await waitFor('app-passenger', 5000);
-        await sleep(1500); // UI load hone ke liye
+        await sleep(1500); // UI load hone ke liye wait
+
+        // START TIMER FOR 15 SECONDS STRICT RULE
+        const startTime = Date.now();
 
         for (let i = 0; i < PASSENGER_DETAILS.length; i++) {
             const p = PASSENGER_DETAILS[i];
 
             if (i > 0) {
                 // Click + Add Passenger
-                const addBtnElements = Array.from(document.querySelectorAll('span, a')).filter(s => s.innerText && s.innerText.includes('+ Add Passenger'));
-                if (addBtnElements.length > 0) {
-                    await humanClick(addBtnElements[addBtnElements.length - 1]);
-                    await sleep(500);
+                const addBtn = getElementByXPath('//*[contains(text(), "+ Add Passenger")]') 
+                               || document.querySelector('div.col-lg-9 > div:nth-of-type(6) div:nth-of-type(2) > div.pull-left span:nth-of-type(1)');
+                if (addBtn) {
+                    await humanClick(addBtn);
+                    await sleep(600);
                 }
             }
 
@@ -503,82 +729,79 @@
             if (i >= blocks.length) continue;
             const block = blocks[i];
 
-            // 1. Name Input
-            const nameInput = block.querySelector('p-autocomplete input') || block.querySelector('input[formcontrolname="passengerName"]');
+            // 1. Name Input 
+            const nameInput = block.querySelector('span > div.col-xs-12 input');
             if (nameInput) {
-                await typeAndTrigger(nameInput, p.name);
+                await humanClick(nameInput); 
+                await sleep(200);
+                await typeAndTrigger(nameInput, p.name); 
                 await sleep(300);
             }
 
-            // 2. Age Input
-            const ageInput = block.querySelector('input[formcontrolname="passengerAge"]') || block.querySelector('input[aria-label="Age"]');
+            // 2. Age Input 
+            const ageInput = block.querySelector('div.col-sm-1 > input');
             if (ageInput) {
-                await typeAndTrigger(ageInput, p.age);
+                await humanClick(ageInput); 
+                await sleep(200);
+                await typeAndTrigger(ageInput, p.age); 
                 await sleep(300);
             }
 
             // 3. Gender Dropdown 
-            const genderSelect = block.querySelector('select[formcontrolname="passengerGender"]');
+            const genderSelect = block.querySelector('div.col-sm-2 > select');
             if (genderSelect) {
-                await humanClick(genderSelect);
-                genderSelect.value = p.gender;
+                await humanClick(genderSelect); 
+                await sleep(200);
+                genderSelect.value = p.gender; 
                 genderSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 genderSelect.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
                 await sleep(300);
             }
         }
 
-        // 4. Tick "Book only if confirm berths are allotted"
+        // 4. Tick "Book only if confirm berths are allotted" 
         try {
-            const allLabels = Array.from(document.querySelectorAll('label'));
-            const confirmLabel = allLabels.find(l => l.innerText.toLowerCase().includes('confirm berths'));
-            
+            const confirmLabel = getElementByXPath('//label[contains(text(), "Book only if")]') 
+                                 || document.querySelector('span div:nth-of-type(2) > label');
             if (confirmLabel) {
-                const targetRadioBox = confirmLabel.parentElement.parentElement.querySelector('.ui-radiobutton-box, .ui-chkbox-box') 
-                                       || document.querySelector('p-radiobutton[inputid="2"] .ui-radiobutton-box') 
-                                       || confirmLabel;
-                await humanClick(targetRadioBox);
+                await humanClick(confirmLabel);
                 await sleep(500);
             }
         } catch (e) {
             console.log("No confirm berth option found or error:", e);
         }
 
-        // 5. Select Payment Mode (BHIM/UPI - Option 2 based on your JSON)
+        // 5. Select Payment Mode (BHIM/UPI)
         try {
-            updateReqStatus("SELECTING BHIM/UPI PAYMENT...", "BOT");
-            // Hum IRCTC k form mei directly 2nd option select kar rahe hain jaise JSON me record hua tha
             
-            // Method 1: Using the exact id="2" from JSON
-            let paymentOptionSelected = false;
-            const upiRadioById = document.querySelector('p-radiobutton[inputid="2"] .ui-radiobutton-box') 
-                                 || document.querySelector('tr:nth-of-type(2) .ui-radiobutton-box');
+            const upiRadio = getElementByXPath('//*[@id="2"]/div/div[2]') 
+                             || document.querySelector('tr:nth-of-type(2) div.ui-radiobutton-box');
 
-            if (upiRadioById) {
-                await humanClick(upiRadioById);
-                paymentOptionSelected = true;
+            if (upiRadio) {
+                await humanClick(upiRadio);
                 await sleep(500);
             } 
-            
-            // Method 2: Fallback (Text search)
-            if (!paymentOptionSelected) {
-                const allLabels = Array.from(document.querySelectorAll('label'));
-                const upiLabel = allLabels.find(l => l.innerText.toUpperCase().includes('BHIM') || l.innerText.toUpperCase().includes('UPI'));
-                
-                if (upiLabel) {
-                    const upiBox = upiLabel.parentElement.parentElement.querySelector('.ui-radiobutton-box') || upiLabel;
-                    await humanClick(upiBox);
-                    await sleep(500);
-                }
-            }
         } catch (e) {
             console.log("Payment selection error:", e);
         }
 
+        // ==========================================================
+        // ENFORCE MINIMUM 15 SECONDS WAIT BEFORE CONTINUE
+        // ==========================================================
+        const elapsedTime = Date.now() - startTime;
+        const requiredTime = 15000; // 15 seconds strict rule
+        if (elapsedTime < requiredTime) {
+            const remainingTime = requiredTime - elapsedTime;
+            
+            await realTimeSleep(remainingTime);
+        }
+
         // 6. Click Continue Button
-        const continueBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText && b.innerText.toLowerCase().includes('continue') && !b.classList.contains('ng-hide'));
+        const continueBtn = getElementByXPath('//*[@id="psgn-form"]/form/div/div[1]/p-sidebar/div/div/div[2]/button') 
+                            || document.querySelector('div.pull-right > button');
+                            
         if (continueBtn) {
-            updateReqStatus("CLICKING CONTINUE...", "BOT");
+            
             await humanClick(continueBtn);
         }
 
@@ -616,7 +839,7 @@
                 }
                 lastCaptchaSrc = captchaImg.src;
 
-                updateReqStatus('SOLVING PAYMENT CAPTCHA...', "BOT");
+                
                 const solved = await solveTrueCaptcha(captchaImg, captchaInput);
 
                 if (solved) {
@@ -662,9 +885,71 @@
 
         if(localCaptchaSolved) {
             window.captchaSolved = true;
-            updateReqStatus("CAPTCHA DONE. PAYMENT PAGE LOADED.", "BOT");
+            
         }
     }
+
+    // ============================================================
+    // RECORDER-REPLAY: PAYMENT GATEWAY SELECTION PHASE
+    // ============================================================
+    async function executePaymentPhase() {
+        if (window.paymentExecuted) return;
+        
+
+        // Wait for Angular payment wrapper to load properly
+        await waitFor('app-payment', 5000);
+        await sleep(1500); 
+
+        function getByXpath(xpath) {
+            try {
+                return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            } catch (e) { return null; }
+        }
+
+        // STEP 1: Click BHIM/ UPI/ USSD 
+        const step1Xpath = '//*[@id="pay-type"]/span/div[3]/span';
+        let step1El = getByXpath(step1Xpath) || 
+                      Array.from(document.querySelectorAll('div.col-sm-9 div > span')).find(el => el.innerText.includes('BHIM/ UPI/ USSD')) ||
+                      Array.from(document.querySelectorAll('span')).find(el => el.innerText.trim() === 'BHIM/ UPI/ USSD');
+        if (step1El) {
+            await humanClick(step1El);
+            await sleep(800); 
+        }
+
+        // STEP 2: Click Continue 
+        const step2Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[2]/div/div/div[2]/button';
+        let step2El = getByXpath(step2Xpath) || 
+                      Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
+        if (step2El && window.getComputedStyle(step2El).display !== 'none') {
+            await humanClick(step2El);
+            await sleep(800);
+        }
+
+// STEP 3: Click inside Bank Type Gateway Grid (JSON step 3)
+        const step3Xpath = '//*[@id="bank-type"]/div/table/tr/span[2]/td/div/div';
+        let step3El = getByXpath(step3Xpath) || 
+                      document.querySelector('#bank-type span:nth-of-type(2) div > div') ||
+                      (document.querySelectorAll('#bank-type span')[2] ? document.querySelectorAll('#bank-type span')[2].querySelector('div') : null);
+        if (step3El) {
+            await humanClick(step3El);
+            await sleep(800);
+        }
+        
+        
+        
+        
+        // STEP 4: Click Pay & Book 
+        const step4Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[1]/div/div/div[2]/div[2]/button';
+        let step4El = getByXpath(step4Xpath) || 
+                      Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
+        if (step4El) {
+            
+            await humanClick(step4El);
+            window.paymentExecuted = true;
+            await sleep(1000);
+        }
+    }
+
 
     // ============================================================
     // 4. MAIN ORCHESTRATOR LOOP (SPA Router)
@@ -676,21 +961,29 @@
             const url = window.location.href;
             
             if (url.includes('train-search') || url === 'https://www.irctc.co.in/nget/') {
-                const isLoggedIn = document.querySelector('a[aria-label="Click here to Logout"]') !== null || 
-                                   (document.querySelector('span.pull-right') !== null && document.querySelector('span.pull-right').innerText.includes('Welcome'));
+                // FIXED LOGIN DETECTION LOGIC
+                const loginLink = document.querySelector('a.search_btn.loginText');
+                const isLoginLinkVisible = loginLink && window.getComputedStyle(loginLink).display !== 'none';
+                const isLoginModalOpen = document.querySelector('app-login') !== null;
                 
-                if (!isLoggedIn) {
-                    if (!window.loginExecuted || document.querySelector('app-login')) {
-                        updateReqStatus("EXECUTING LOGIN...", "BOT");
+                if (isLoginLinkVisible || isLoginModalOpen) {
+                    if (!window.loginExecuted || isLoginModalOpen) {
+                        
                         await executeRecorderLogin();
                     } else {
-                        updateReqStatus("LOGIN DONE. WAITING...", "BOT");
+                        
                     }
                 } else {
-                    updateReqStatus("SEARCH YOUR TRAIN", "MANUAL");
-                    window.trainBooked = false; 
-                    window.captchaSolved = false;
-                    window.passengerFilled = false; // Reset tracker
+                    // Executing EXACT JSON replay immediately when logged in
+                    if (!window.journeyDetailsFilled) {
+                        await executeJourneyDetailsPhase();
+                    } else {
+                        
+                        window.trainBooked = false; 
+                        window.captchaSolved = false;
+                        window.passengerFilled = false; 
+                        window.paymentExecuted = false; 
+                    }
                 }
             }
             else if (url.includes('booking/train-list')) {
@@ -698,10 +991,10 @@
                     if (BOOKING_DETAILS.trainNumber && BOOKING_DETAILS.classCode) {
                         await executeTrainListPhase();
                     } else {
-                        updateReqStatus("ENTER TRAIN NUMBER IN SCRIPT!", "MANUAL");
+                        
                     }
                 } else {
-                    updateReqStatus("BOOKED! WAITING NEXT PAGE...", "BOT");
+                    
                 }
             }
             else if (url.includes('booking/psgninput')) {
@@ -709,22 +1002,26 @@
                 if (!window.passengerFilled) {
                     await executePassengerPhase();
                 } else {
-                    updateReqStatus("PROCEEDING TO REVIEW...", "BOT");
+                    
                 }
             }
             else if (url.includes('booking/reviewBooking')) {
                 if (!window.captchaSolved) {
-                    updateReqStatus("SOLVING CAPTCHA...", "BOT");
+                    
                     await executeReviewPhase();
                 } else {
-                    updateReqStatus("VERIFIED! PROCEED TO PAY...", "MANUAL");
+                    
                 }
             }
             else if (url.includes('payment/bkgPaymentOptions')) {
-                updateReqStatus("MAKE PAYMENT", "MANUAL");
+                if (!window.paymentExecuted) {
+                    await executePaymentPhase();
+                } else {
+                    
+                }
             }
             else {
-                updateReqStatus("IDLE / WAITING...", "MANUAL");
+                
             }
             
             await sleep(1000);
