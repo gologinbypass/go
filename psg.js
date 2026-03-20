@@ -20,12 +20,12 @@
     ];
 
     const BOOKING_DETAILS = {
-        fromStation: "KQR ",      // <-- ADDED: From Station
-        toStation: "LDH ",        // <-- ADDED: To Station
-        date: "20/04/2026",      // <-- ADDED: Journey Date
+        fromStation: "LDH ",      // <-- ADDED: From Station
+        toStation: "KQR ",        // <-- ADDED: To Station
+        date: "21/03/2026",      // <-- ADDED: Journey Date
         trainNumber: "13307",   
-        classCode: "SL",        
-        quota: "GENERAL",        
+        classCode: "3A,        
+        quota: "PREMIUM TATKAL"  
         ACTime: "10:00:00",
         SLTime: "11:00:00",
         GNTime: "08:00:00"
