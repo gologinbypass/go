@@ -15,15 +15,15 @@
 
     // YAHAN APNE KAM SE KAM 3 PASSENGERS KI DETAILS DAALEIN
     const PASSENGER_DETAILS =[
-        { name: "SHIVA", age: "22", gender: "M" },
-        { name: "RAHUL", age: "25", gender: "M" }  // <-- 2rd Passenger
+        { name: "GUDDU KUMAR", age: "25", gender: "M" }
+         // <-- 2rd Passenger
     ];
 
     const BOOKING_DETAILS = {
-        fromStation: "LDH ",      // <-- ADDED: From Station
+        fromStation: "CSMT ",      // <-- ADDED: From Station
         toStation: "KQR ",        // <-- ADDED: To Station
         date: "21/03/2026",      // <-- ADDED: Journey Date
-        trainNumber: "13307",   
+        trainNumber: "12322",   
         classCode: "3A,        
         quota: "PREMIUM TATKAL"  
         ACTime: "10:00:00",
