@@ -24,7 +24,7 @@
         toStation: "KQR ",        // <-- ADDED: To Station
         date: "21/03/2026",      // <-- ADDED: Journey Date
         trainNumber: "12322",   
-        classCode: "3A,        
+        classCode: "3A",        
         quota: "PREMIUM TATKAL"  
         ACTime: "10:00:00",
         SLTime: "11:00:00",
