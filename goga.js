@@ -1,4 +1,3 @@
-
 (async function() {
     'use strict';
 
@@ -159,38 +158,55 @@
         const container = document.createElement('div');
         container.id = 'bmw-status-container';
         container.innerHTML = `
-            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.85); padding: 10px; border-radius: 8px; font-family: 'Courier New', Courier, monospace; border: 2px solid #00ff00; width: 280px; box-shadow: 0px 0px 15px rgba(0,255,0,0.5); backdrop-filter: blur(5px);">
+            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.85); border-radius: 8px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #00ff00; width: 200px; box-shadow: 0px 4px 15px rgba(0,255,0,0.3); backdrop-filter: blur(5px); overflow: hidden;">
                 
-                <div style="display:flex; justify-content: space-between; align-items:center; border-bottom: 1px solid #00ff00; margin-bottom: 10px; padding-bottom: 5px;">
-                    <div style="font-size: 15px; font-weight: bold; color: #00ff00;">BMW PRO STATUS</div>
-                    <button id="bmw-save-btn" style="background: #28a745; color: white; border: 1px solid #1e7e34; padding: 2px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #28a745; font-size:12px;">SAVE</button>
+                <!-- Header with SAVE and Toggle Button -->
+                <div style="display:flex; justify-content: space-between; align-items:center; background: #111; padding: 10px 15px; border-bottom: 1px solid #00ff00;">
+                    <div style="font-size: 14px; font-weight: bold; color: #00ff00; letter-spacing: 1px;">BMW PRO</div>
+                    <div style="display:flex; gap: 5px;">
+                        <button id="bmw-save-btn" style="background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #28a745; font-size:12px; transition: 0.2s;">SAVE</button>
+                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">▼</button>
+                    </div>
                 </div>
                 
-                <!-- Quick Inputs inside Status Bar -->
-                <div style="margin-bottom: 8px; display:flex; justify-content: space-between;">
-                    <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:48%; background:#222; color:#0f0; border:1px solid #0f0; border-radius:3px; padding:4px; font-size:12px; font-weight:bold; text-align:center;">
-                    
-                    <select id="bmw-status-class" style="width:48%; background:#222; color:#0f0; border:1px solid #0f0; border-radius:3px; padding:4px; font-size:12px; font-weight:bold;">
-                        <option value="SL">SL</option><option value="1A">1A</option><option value="2A">2A</option>
-                        <option value="3A">3A</option><option value="3E">3E</option><option value="CC">CC</option>
-                        <option value="EC">EC</option><option value="2S">2S</option>
-                    </select>
-                </div>
+                <div style="padding: 15px;">
+                    <!-- Dropdown Inputs Section (Hidden by Default) -->
+                    <div id="bmw-inputs-section" style="display: none; margin-bottom: 15px;">
+                        <div style="margin-bottom: 10px; display:flex; justify-content: space-between; gap: 8px;">
+                            <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; text-align:center; outline:none;">
+                            
+                            <select id="bmw-status-class" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
+                                <option value="SL">SL</option><option value="1A">1A</option><option value="2A">2A</option>
+                                <option value="3A">3A</option><option value="3E">3E</option><option value="CC">CC</option>
+                                <option value="EC">EC</option><option value="2S">2S</option>
+                            </select>
+                        </div>
 
-                <div style="margin-bottom: 10px;">
-                    <select id="bmw-status-quota" style="width:100%; background:#222; color:#0f0; border:1px solid #0f0; border-radius:3px; padding:4px; font-size:12px; font-weight:bold;">
-                        <option value="GENERAL">GENERAL</option>
-                        <option value="TATKAL">TATKAL</option>
-                        <option value="PREMIUM TATKAL">PREMIUM TATKAL</option>
-                    </select>
-                </div>
+                        <div style="margin-bottom: 5px;">
+                            <select id="bmw-status-quota" style="width:100%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
+                                <option value="GENERAL">GENERAL</option>
+                                <option value="TATKAL">TATKAL</option>
+                                <option value="PREMIUM TATKAL">PREMIUM TATKAL</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">Current Process:</div>
-                <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
-                
-                <div id="bmw-countdown-box" style="display: none; margin-top: 10px; border-top: 1px dashed #00ff00; padding-top: 8px;">
-                    <div id="bmw-countdown-title" style="font-size: 12px; color: #00e5ff; text-align: center; margin-bottom: 3px; font-weight: bold;"></div>
-                    <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-align: center; text-shadow: 0 0 5px rgba(255,23,68,0.5); letter-spacing: 2px;"></div>
+                    <!-- Status & Timer Area (Padding 10px 20px added here) -->
+                    <div style="padding: 10px 20px; background: rgba(0, 20, 0, 0.6); border: 1px solid #00ff00; border-radius: 6px; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
+                        
+                        <!-- Normal Status text -->
+                        <div id="bmw-status-wrapper">
+                            <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
+                            <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
+                        </div>
+                        
+                        <!-- Timer replaces status here -->
+                        <div id="bmw-timer-wrapper" style="display: none;">
+                            <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
+                            <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 8px rgba(255,23,68,0.6); letter-spacing: 2px; font-family: 'Courier New', monospace;"></div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         `;
@@ -199,6 +215,19 @@
         // Sync initial values
         document.getElementById('bmw-status-class').value = BMW_CONFIG.classCode;
         document.getElementById('bmw-status-quota').value = BMW_CONFIG.quota;
+
+        // Toggle Expand/Collapse Inputs
+        const toggleBtn = document.getElementById('bmw-toggle-btn');
+        const inputsSection = document.getElementById('bmw-inputs-section');
+        toggleBtn.addEventListener('click', () => {
+            if (inputsSection.style.display === 'none') {
+                inputsSection.style.display = 'block';
+                toggleBtn.innerText = '▲';
+            } else {
+                inputsSection.style.display = 'none';
+                toggleBtn.innerText = '▼';
+            }
+        });
 
         // Auto-save on change in Status Bar
         document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; saveConfig(); });
@@ -230,13 +259,16 @@
             return;
         }
 
-        const countdownBox = document.getElementById('bmw-countdown-box');
+        const statusWrapper = document.getElementById('bmw-status-wrapper');
+        const timerWrapper = document.getElementById('bmw-timer-wrapper');
         const countdownTitle = document.getElementById('bmw-countdown-title');
         const countdownTime = document.getElementById('bmw-countdown-time');
 
-        if (countdownBox && countdownTitle) {
-            countdownBox.style.display = 'block';
-            countdownTitle.innerText = `${mainTitle} - Waiting till ${targetTimeStr}`;
+        // Hide Status, Show Timer in same place
+        if (statusWrapper && timerWrapper && countdownTitle) {
+            statusWrapper.style.display = 'none';
+            timerWrapper.style.display = 'block';
+            countdownTitle.innerText = `${mainTitle} - ${targetTimeStr}`;
         }
 
         while (true) {
@@ -244,7 +276,11 @@
             const diff = targetDate - current;
             
             if (diff <= 0) {
-                if (countdownBox) countdownBox.style.display = 'none';
+                // Restore Status view once time is up
+                if (statusWrapper && timerWrapper) {
+                    timerWrapper.style.display = 'none';
+                    statusWrapper.style.display = 'block';
+                }
                 break;
             }
 
@@ -525,6 +561,14 @@
 
         while (true) {
             const url = window.location.href;
+            const uiContainer = document.getElementById('bmw-status-container');
+            
+            // ✅ HIDE ON PASSENGER & PAYMENT PAGES
+            if (url.includes('booking/psgninput') || url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
+                if (uiContainer) uiContainer.style.display = 'none';
+            } else {
+                if (uiContainer) uiContainer.style.display = 'block';
+            }
             
             if (url.includes('train-search')) {
                 updateReqStatus("MANUAL SEARCH PAGE...");
