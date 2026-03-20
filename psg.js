@@ -4,7 +4,6 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-
     // ============================================================
     // 0. LOGIN CREDENTIALS, BOOKING & PASSENGER DETAILS
     // ============================================================
@@ -16,16 +15,15 @@
     // YAHAN APNE KAM SE KAM 3 PASSENGERS KI DETAILS DAALEIN
     const PASSENGER_DETAILS =[
         { name: "GUDDU KUMAR", age: "25", gender: "M" }
-         // <-- 2rd Passenger
     ];
 
     const BOOKING_DETAILS = {
-        fromStation: "CSMT ",      // <-- ADDED: From Station
-        toStation: "KQR ",        // <-- ADDED: To Station
-        date: "21/03/2026",      // <-- ADDED: Journey Date
-        trainNumber: "12322",   
-        classCode: "3A",        
-        quota: "PREMIUM TATKAL",
+        fromStation: "KQR ",      
+        toStation: "LDH ",        
+        date: "20/04/2026",      
+        trainNumber: "13307",   
+        classCode: "SL",        
+        quota: "GENERAL",
         ACTime: "10:00:00",
         SLTime: "11:00:00",
         GNTime: "08:00:00"
@@ -52,20 +50,18 @@
     window.loginExecuted = false;
     window.passengerFilled = false; 
     window.paymentExecuted = false; 
-    window.journeyDetailsFilled = false; // <-- ADDED for Journey Phase
+    window.journeyDetailsFilled = false; 
+    window.cachedTrueCaptchaConfig = null; // Added cache state for truecaptcha speedup
 
     // ============================================================
-    // 1. HELPER FUNCTIONS & STEALTH ENGINES
+    // 1. ADVANCED STEALTH ENGINES & HELPER FUNCTIONS
     // ============================================================
-    function log(msg) { console.log(`[BOT] ${msg}`); }
+    function log(msg) { console.log(`[BOT-PRO] ${msg}`); }
     
     function updateReqStatus(msg, mode = "BOT") {
         log(`STATUS UPDATE: ${msg}`);
-        
         const statusEl = document.getElementById('bmw-current-status');
-        if (statusEl) {
-            statusEl.innerText = msg;
-        }
+        if (statusEl) statusEl.innerText = msg;
 
         const modeEl = document.getElementById('bmw-bot-mode');
         if (modeEl) {
@@ -75,8 +71,18 @@
         }
     }
 
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms < 150 ? ms : (ms * SPEED_MULTIPLIER)));
+    // --- STEP 1: GAUSSIAN DELAY SYSTEM (Bell Curve) ---
+    function gaussianRandom(mean, stdev) {
+        let u = 1 - Math.random(); 
+        let v = Math.random();
+        let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        let delay = Math.abs(Math.floor(mean + z * stdev));
+        return Math.max(delay, 10); // Kam se kam 10ms toh ho
+    }
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     const realTimeSleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const humanSleep = async (mean, stdev) => await sleep(gaussianRandom(mean, stdev));
 
     async function waitFor(selector, timeout = 30000) {
         const start = Date.now();
@@ -129,74 +135,130 @@
         }
     }
 
-    // ADVANCED HUMAN TYPING - Angular events fix
-    async function typeAndTrigger(element, value) {
-        if (!element) return;
-        element.focus();
-        element.dispatchEvent(new Event('focus', { bubbles: true }));
-        element.click();
-        
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-        nativeSetter.call(element, '');
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-        
-        for (let i = 0; i < value.length; i++) {
-            nativeSetter.call(element, element.value + value[i]);
-            element.dispatchEvent(new KeyboardEvent('keydown', { key: value[i], bubbles: true }));
-            element.dispatchEvent(new Event('input', { bubbles: true }));
-            element.dispatchEvent(new KeyboardEvent('keyup', { key: value[i], bubbles: true }));
-            await sleep(15 + Math.random() * 20); 
+    // --- STEP 4: MOUSE MOVEMENT & SCROLLING ---
+    async function simulateMouseMove(startX, startY, endX, endY) {
+        const steps = gaussianRandom(8, 2); // 6 se 10 steps me mouse move hoga
+        for(let i=1; i<=steps; i++) {
+            const x = startX + (endX - startX) * (i / steps) + (Math.random() * 6 - 3);
+            const y = startY + (endY - startY) * (i / steps) + (Math.random() * 6 - 3);
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }));
+            await sleep(gaussianRandom(15, 5));
         }
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
     }
 
-    // SPECIAL TYPING - Bina 'blur' ke jisse Station Dropdown gayab na ho
-    async function typeForAutoComplete(element, value) {
-        if (!element) return;
-        element.focus();
-        element.dispatchEvent(new Event('focus', { bubbles: true }));
-        element.click();
-        
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-        nativeSetter.call(element, '');
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-        
-        for (let i = 0; i < value.length; i++) {
-            nativeSetter.call(element, element.value + value[i]);
-            element.dispatchEvent(new KeyboardEvent('keydown', { key: value[i], bubbles: true }));
-            element.dispatchEvent(new Event('input', { bubbles: true }));
-            element.dispatchEvent(new KeyboardEvent('keyup', { key: value[i], bubbles: true }));
-            await sleep(40 + Math.random() * 20); 
-        }
-        element.dispatchEvent(new Event('change', { bubbles: true }));
+    async function naturalScroll() {
+        await humanSleep(150, 30);
+        window.scrollBy({ top: gaussianRandom(150, 40), behavior: 'smooth' });
+        await humanSleep(300, 50);
+        window.scrollBy({ top: -gaussianRandom(50, 20), behavior: 'smooth' }); 
     }
 
+    // --- STEP 2: FULL EVENT LIFECYCLE (PRO HUMAN CLICK) ---
     async function humanClick(el) {
         if (!el) return;
-        el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-        el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, buttons: 1 }));
-        await sleep(30);
-        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        el.click(); 
+        
+        // Visual Search Time (Element dhoondhne aur dekhne me time lagta hai)
+        await humanSleep(250, 60);
+
+        try {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch(e){}
+        await humanSleep(150, 40);
+
+        // Get coordinates for mouse movement
+        const rect = el.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+
+        // Mouse ko button tak le jana
+        await simulateMouseMove(targetX - 40, targetY - 40, targetX, targetY);
+
+        el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, clientX: targetX, clientY: targetY }));
+        await humanSleep(20, 5);
+        el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: targetX, clientY: targetY }));
+        await humanSleep(30, 10);
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, buttons: 1, clientX: targetX, clientY: targetY }));
+        
+        // Button dabane aur chhodne ke beech ka waqt
+        await humanSleep(50, 15); 
+        
+        el.dispatchEvent(new Event('focus', { bubbles: true }));
+        await humanSleep(20, 5);
+        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: targetX, clientY: targetY }));
+        await humanSleep(15, 5);
+        
+        el.click(); // Final trigger
+        
+        // Click karne ke baad ka natural pause
+        await humanSleep(200, 50);
     }
 
-    // XPath helper specific for JSON Selectors
-    function getElementByXPath(xpath) {
-        try {
-            return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        } catch (e) {
-            return null;
+    // --- STEP 3: KEYBOARD DYNAMICS (Human Typing + Typos) ---
+    async function humanType(element, value, triggerBlur = true) {
+        if (!element) return;
+        
+        await humanClick(element); 
+        
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        nativeSetter.call(element, '');
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        for (let i = 0; i < value.length; i++) {
+            let char = value[i];
+            
+            // Pro Tip: Typo (Mistake) & Correction Logic
+            // Insaan se speed me galti hoti hai, 4% chance of making a typo to confuse anti-bot
+            if (value.length > 3 && Math.random() < 0.04 && /[a-zA-Z]/.test(char)) {
+                let typoChar = String.fromCharCode(char.charCodeAt(0) + (Math.random() > 0.5 ? 1 : -1)); 
+                nativeSetter.call(element, element.value + typoChar);
+                element.dispatchEvent(new KeyboardEvent('keydown', { key: typoChar, bubbles: true }));
+                element.dispatchEvent(new KeyboardEvent('keypress', { key: typoChar, bubbles: true }));
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                element.dispatchEvent(new KeyboardEvent('keyup', { key: typoChar, bubbles: true }));
+                
+                await humanSleep(250, 50); // Oops, galti ho gayi (realization time)
+                
+                // Backspace se mitana
+                nativeSetter.call(element, element.value.slice(0, -1));
+                element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, keyCode: 8 }));
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', bubbles: true, keyCode: 8 }));
+                
+                await humanSleep(200, 40); // Sahi letter soch kar likhna
+            }
+
+            // Actual Correct Character typing
+            nativeSetter.call(element, element.value + char);
+            element.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
+            element.dispatchEvent(new KeyboardEvent('keypress', { key: char, bubbles: true }));
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            element.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
+            
+            // Random Gaussian Typing Speed between keystrokes
+            await humanSleep(120, 35); 
         }
+        
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        if (triggerBlur) {
+            await humanSleep(100, 30);
+            element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+        }
+    }
+
+    function getElementByXPath(xpath) {
+        try { return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue; } 
+        catch (e) { return null; }
     }
 
     function startAntiIdle() {
-        setInterval(() => {
+        setInterval(async () => {
             const x = Math.floor(Math.random() * window.innerWidth);
             const y = Math.floor(Math.random() * window.innerHeight);
-            document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }));
-        }, 1500);
+            const currentX = window.innerWidth / 2;
+            const currentY = window.innerHeight / 2;
+            await simulateMouseMove(currentX, currentY, x, y);
+        }, gaussianRandom(2500, 500));
     }
     startAntiIdle(); 
 
@@ -208,12 +270,12 @@
         const { username, password } = LOGIN_CREDENTIALS;
         if (!username || !password) return;
 
-        
+        await naturalScroll(); // Thoda scroll shuru mein
 
         const hamburger = document.querySelector('div.moblogo > a > i');
         if (hamburger && !document.querySelector('app-login')) {
             await humanClick(hamburger);
-            await sleep(800);
+            await humanSleep(800, 100);
         }
 
         const slideLoginBtn = document.querySelector('div.header-fix button');
@@ -229,41 +291,40 @@
 
         const loginModal = await waitFor('app-login', 5000);
         if (!loginModal) return;
-        await sleep(1500); 
+        await humanSleep(1500, 200); 
 
         const userField = document.querySelector('input[aria-label="User Name"]') || document.querySelector('input[formcontrolname="userid"]');
         if (userField && !userField.value) {
-            await typeAndTrigger(userField, username);
-            await sleep(500);
+            await humanType(userField, username, true);
+            await humanSleep(500, 100);
         }
 
         const passField = document.querySelector('input[aria-label="Password"]') || document.querySelector('input[formcontrolname="password"]');
         if (passField && !passField.value) {
-            await typeAndTrigger(passField, password);
-            await sleep(500);
+            await humanType(passField, password, true);
+            await humanSleep(500, 100);
         }
 
         const captchaInput = document.querySelector('app-login #captcha');
         const captchaImg = document.querySelector('app-login .captcha-img');
         
         if (captchaImg && captchaInput) {
-            
             let retries = 0;
-            while (retries < 20 && captchaImg.src.length < 100) {
-                await sleep(200);
+            // Delay for checking captcha image fixed (20ms instead of 200ms) to send to TrueCaptcha instantly
+            while (retries < 100 && captchaImg.src.length < 100) {
+                await sleep(20);
                 retries++;
             }
             await solveTrueCaptcha(captchaImg, captchaInput);
-            await sleep(1000); 
+            await humanSleep(1000, 150); 
         } else {
-            await sleep(1000);
+            await humanSleep(1000, 150);
         }
 
         const signInBtn = document.querySelector('app-login button[type="submit"]') || Array.from(document.querySelectorAll('app-login button')).find(b => b.innerText && b.innerText.includes('SIGN IN'));
         if (signInBtn) {
-            
             await humanClick(signInBtn);
-            await sleep(2000); 
+            await humanSleep(2000, 200); 
         }
 
         window.loginExecuted = true;
@@ -278,83 +339,56 @@
         const originInput = await waitFor('form > div:nth-of-type(2) > div:nth-of-type(1) input', 15000) || await waitFor('#origin input', 5000);
         if (!originInput) return;
 
-        
-        await sleep(1000);
+        await humanSleep(1000, 150);
 
-        // First close any "Last Transaction Detail" popup to ensure clear view
         const allPrimaryBtns = document.querySelectorAll('button.btn.btn-primary');
         for (const btn of allPrimaryBtns) {
             if (btn.innerText.trim().toUpperCase() === "CLOSE" || (btn.getAttribute('aria-label') && btn.getAttribute('aria-label').includes('Last Transaction Detail'))) {
                 await humanClick(btn);
-                await sleep(500); 
+                await humanSleep(500, 100); 
                 break;
             }
         }
         await waitForSpinner();
 
-        // ---------------------------------------------------------
-        // JSON STEP 1: Click "Minimize chat" (PC & Mobile Safe)
-        // ---------------------------------------------------------
         try {
             let minimizeIcon = document.querySelector('#minimiseIconx') || getElementByXPath('//*[@id="minimiseIconx"]');
             if (minimizeIcon && minimizeIcon.offsetParent !== null) {
                 await humanClick(minimizeIcon);
-                await sleep(300);
+                await humanSleep(300, 50);
             }
         } catch(e) {}
 
-        // ---------------------------------------------------------
-        // JSON STEP 2 & 3: Click 'From' Input and Type Value
-        // ---------------------------------------------------------
         let fromEl = document.querySelector('form > div:nth-of-type(2) > div:nth-of-type(1) input') || document.querySelector('#origin input');
         if (fromEl) {
-            await humanClick(fromEl); // JSON Click
-            await sleep(400);
-            await typeForAutoComplete(fromEl, BOOKING_DETAILS.fromStation); // Type WITHOUT Blur
-            await sleep(1500); 
+            await humanType(fromEl, BOOKING_DETAILS.fromStation, false); // Type WITHOUT Blur
+            await humanSleep(1500, 200); 
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 4: Click Highlighted Option
-        // ---------------------------------------------------------
         let fromOpt = await waitFor('#p-highlighted-option > span', 5000);
         if (fromOpt) {
             await humanClick(fromOpt);
-            await sleep(600);
+            await humanSleep(600, 100);
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 5 & 6: Click 'To' Input and Type Value
-        // ---------------------------------------------------------
         let toEl = document.querySelector('#divMain div:nth-of-type(2) > div:nth-of-type(2) input') || document.querySelector('#destination input');
         if (toEl) {
-            await humanClick(toEl); // JSON Click
-            await sleep(400);
-            await typeForAutoComplete(toEl, BOOKING_DETAILS.toStation); // Type WITHOUT Blur
-            await sleep(1500); 
+            await humanType(toEl, BOOKING_DETAILS.toStation, false); // Type WITHOUT Blur
+            await humanSleep(1500, 200); 
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 7: Click Highlighted Option
-        // ---------------------------------------------------------
         let toOpt = await waitFor('#p-highlighted-option > span', 5000);
         if (toOpt) {
             await humanClick(toOpt);
-            await sleep(600);
+            await humanSleep(600, 100);
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 8: Click 'Journey Date' Input
-        // ---------------------------------------------------------
         let dateEl = document.querySelector('div:nth-of-type(3) > div:nth-of-type(1) input') || document.querySelector('#jDate input');
         if (dateEl) {
-            await humanClick(dateEl); // JSON Click
-            await sleep(800);
+            await humanClick(dateEl); 
+            await humanSleep(800, 150);
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 9 & 10: Click 'Next Arrow' till Month Matches
-        // ---------------------------------------------------------
         const calendarTable = await waitFor('table.ui-datepicker-calendar', 3000);
         if (calendarTable) {
             const [tDay, tMonth, tYear] = BOOKING_DETAILS.date.split('/');
@@ -370,61 +404,47 @@
                     break;
                 }
                 
-                // JSON Click: a.ui-datepicker-next > span
                 let nextBtn = document.querySelector('a.ui-datepicker-next > span') || document.querySelector('.ui-datepicker-next');
                 if (nextBtn) { 
                     await humanClick(nextBtn); 
-                    await sleep(400); 
+                    await humanSleep(400, 80); 
                 } else {
                     break;
                 }
                 maxClicks--;
             }
 
-            // ---------------------------------------------------------
-            // JSON STEP 11: Click Exact Date
-            // ---------------------------------------------------------
             const days = document.querySelectorAll('p-calendar .ui-datepicker-calendar a');
             for (const day of days) {
                 if (day.innerText.trim() === parseInt(tDay, 10).toString()) {
                     await humanClick(day);
-                    await sleep(500);
+                    await humanSleep(500, 100);
                     break;
                 }
             }
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 12: Click Quota Dropdown
-        // ---------------------------------------------------------
         let quotaDrop = document.querySelector('#journeyQuota > div');
         if (quotaDrop) {
             await humanClick(quotaDrop);
-            await sleep(800);
+            await humanSleep(800, 150);
             
-            // ---------------------------------------------------------
-            // JSON STEP 13: Click Specific Quota Option
-            // ---------------------------------------------------------
             let quotaItems = document.querySelectorAll('p-dropdownitem li span, ul.ui-dropdown-items li span');
             for (let item of quotaItems) {
                 if (item.innerText.trim().toUpperCase() === BOOKING_DETAILS.quota.toUpperCase()) {
                     await humanClick(item);
-                    await sleep(500);
+                    await humanSleep(500, 100);
                     break;
                 }
             }
         }
 
-        // ---------------------------------------------------------
-        // JSON STEP 14: Click Search Trains Button
-        // ---------------------------------------------------------
         let searchBtn = document.querySelector('div.tbis-box > div:nth-of-type(1) button') || document.querySelector('button.search_btn.train_Search');
         if (searchBtn) {
-            
             await humanClick(searchBtn);
-            await sleep(1000);
+            await humanSleep(1000, 200);
             await waitForSpinner();
-            window.journeyDetailsFilled = true; // Mark as done!
+            window.journeyDetailsFilled = true; 
         }
     }
 
@@ -439,44 +459,13 @@
         const container = document.createElement('div');
         container.id = 'bmw-status-container';
         container.innerHTML = `
-<div id="bmw-overlay-container" style="
-    position: fixed; 
-    top: 15px; 
-    right: 15px; 
-    z-index: 9999998; 
-    background: rgba(0, 0, 0, 0.9); /* Original black background */
-    padding: 8px 10px; 
-    border-radius: 5px; /* Perfect Capsule shape jaisa image mein hai */
-    font-family: 'Courier New', Courier, monospace; 
-    border: 3px solid #ff007f; /* Image jaisa bright pink/magenta border */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    box-shadow: 0px 0px 15px rgba(255, 0, 127, 0.4); /* Pinkish glow */
-    backdrop-filter: blur(5px);
-">
-    <div id="bmw-bot-mode" style="
-        font-size: 12px; 
-        font-weight: bold; 
-        color: #fff; 
-        letter-spacing: 1px;
-    ">KTM</div>
-
+<div id="bmw-overlay-container" style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.9); padding: 8px 10px; border-radius: 5px; font-family: 'Courier New', Courier, monospace; border: 3px solid #ff007f; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0px 0px 15px rgba(255, 0, 127, 0.4); backdrop-filter: blur(5px);">
+    <div id="bmw-bot-mode" style="font-size: 12px; font-weight: bold; color: #fff; letter-spacing: 1px;">KTM</div>
     ||
-
-    <div id="bmw-current-status" style="
-        font-size: 12px; 
-        color: #fff;
-    ">RED STAR</div>
+    <div id="bmw-current-status" style="font-size: 12px; color: #fff;">RED STAR PRO</div>
     ||
-    <div id="bmw-countdown-time" style="         
-        font-size: 12px; 
-        font-weight: bold; 
-        color: #fff;
-    ">EDISON</div>
-</div>
-        `;
+    <div id="bmw-countdown-time" style="font-size: 12px; font-weight: bold; color: #fff;">EDISON</div>
+</div>`;
         target.appendChild(container);
     }
 
@@ -487,9 +476,7 @@
         const targetDate = new Date();
         targetDate.setHours(tHour, tMin, tSec || 0, 0);
 
-        if (now > targetDate) {
-            return;
-        }
+        if (now > targetDate) return;
 
         const countdownBox = document.getElementById('bmw-countdown-box');
         const countdownTitle = document.getElementById('bmw-countdown-title');
@@ -498,13 +485,11 @@
         if (countdownBox && countdownTitle) {
             countdownBox.style.display = 'block';
             countdownTitle.innerText = `${targetTimeStr}`;
-            
         }
 
         while (true) {
             const current = new Date();
             const diff = targetDate - current;
-            
             if (diff <= 0) {
                 if (countdownBox) countdownBox.style.display = 'none';
                 break;
@@ -514,11 +499,9 @@
                 const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                
                 const hStr = hours > 0 ? `${hours.toString().padStart(2, '0')}:` : '';
                 countdownTime.innerText = `${hStr}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             }
-
             await new Promise(r => setTimeout(r, 200)); 
         }
     }
@@ -527,13 +510,21 @@
         try {
             let config = { userid: "truecaptchalover", apikey: "ocGi50BzCfYwabQMsrUg" };
 
-            try {
-                const configResp = await fetch('https://raw.githubusercontent.com/SHANKARPDJ/EXESOFTWARE/refs/heads/main/trueconfig.json');
-                if (configResp.ok) {
-                    const json = await configResp.json();
-                    if (json.truecaptcha) config = json.truecaptcha;
-                }
-            } catch (err) { }
+            // Fetch slow ho raha tha, isliye isko Cache system me daal diya to instantly bhej sake
+            if (window.cachedTrueCaptchaConfig) {
+                config = window.cachedTrueCaptchaConfig;
+            } else {
+                try {
+                    const configResp = await fetch('https://raw.githubusercontent.com/SHANKARPDJ/EXESOFTWARE/refs/heads/main/trueconfig.json');
+                    if (configResp.ok) {
+                        const json = await configResp.json();
+                        if (json.truecaptcha) {
+                            config = json.truecaptcha;
+                            window.cachedTrueCaptchaConfig = config;
+                        }
+                    }
+                } catch (err) { }
+            }
 
             const base64Data = imgElement.src.split(',')[1];
             if (!base64Data) return false;
@@ -542,15 +533,9 @@
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    'client': "chrome extension",
-                    'location': 'https://www.irctc.co.in/nget/train-search',
-                    'version': "0.3.8",
-                    'case': "mixed",
-                    'promise': "true",
-                    'extension': true,
-                    'userid': config.userid,
-                    'apikey': config.apikey,
-                    'data': base64Data
+                    'client': "chrome extension", 'location': 'https://www.irctc.co.in/nget/train-search', 'version': "0.3.8",
+                    'case': "mixed", 'promise': "true", 'extension': true,
+                    'userid': config.userid, 'apikey': config.apikey, 'data': base64Data
                 })
             });
 
@@ -560,8 +545,9 @@
 
             if (resultText) {
                 resultText = resultText.replace(/\s+/g, '').replace(')', 'J').replace(']', 'J');
-                await typeAndTrigger(inputElement, resultText);
-                await sleep(500);
+                // CAPTCHA Typing
+                await humanType(inputElement, resultText, true);
+                await humanSleep(500, 100);
                 return true;
             }
             return false;
@@ -596,7 +582,6 @@
 
         if (!foundTrainBlock) return; 
 
-        // TIMING CHECK
         const now = new Date();
         const currentHour = now.getHours();
 
@@ -612,12 +597,11 @@
             const isAC = acClasses.includes(classCode.toUpperCase());
             const targetTimeStr = isAC ? ACTime : SLTime;
             
-            const [tHour, tMin] = targetTimeStr.split(':').map(Number);
+            const[tHour, tMin] = targetTimeStr.split(':').map(Number);
             if (currentHour < tHour || (currentHour === tHour && now.getMinutes() < tMin)) {
                 await smartWaitWithDisplay(targetTimeStr, `TATKAL : ${isAC ? 'AC' : 'NON-AC'}`);
             }
         }
-
         
         let booked = false;
 
@@ -660,8 +644,6 @@
             let retryCount = 0;
             while (retryCount < 250 && !booked && window.location.href.includes('train-list')) {
                 retryCount++;
-                
-
                 const activeBoxes = foundTrainBlock.querySelectorAll('div.pre-avl');
                 for (const box of activeBoxes) {
                     const text = box.innerText.toUpperCase();
@@ -694,34 +676,30 @@
 
         if(booked) {
             window.trainBooked = true;
-            
         }
     }
 
     // ============================================================
-    // RECORDER-REPLAY: PASSENGER FILLING PHASE 
+    // RECORDER-REPLAY: PASSENGER FILLING PHASE (SUPER HUMANIZED)
     // ============================================================
     async function executePassengerPhase() {
         if (window.passengerFilled) return;
         
-
-        // Wait for passenger component
         await waitFor('app-passenger', 5000);
-        await sleep(1500); // UI load hone ke liye wait
-
-        // START TIMER FOR 15 SECONDS STRICT RULE
-        const startTime = Date.now();
+        await humanSleep(1500, 300); // UI load hone ka lamba intezar jaisa aapne kaha
 
         for (let i = 0; i < PASSENGER_DETAILS.length; i++) {
             const p = PASSENGER_DETAILS[i];
 
             if (i > 0) {
-                // Click + Add Passenger
                 const addBtn = getElementByXPath('//*[contains(text(), "+ Add Passenger")]') 
                                || document.querySelector('div.col-lg-9 > div:nth-of-type(6) div:nth-of-type(2) > div.pull-left span:nth-of-type(1)');
                 if (addBtn) {
+                    // Thoda sochne ka waqt aur scroll
+                    await humanSleep(500, 100);
+                    window.scrollBy({ top: gaussianRandom(100, 20), behavior: 'smooth' });
                     await humanClick(addBtn);
-                    await sleep(600);
+                    await humanSleep(800, 150);
                 }
             }
 
@@ -729,79 +707,68 @@
             if (i >= blocks.length) continue;
             const block = blocks[i];
 
+            // Thoda screen padhne ka samay
+            await humanSleep(400, 100); 
+
             // 1. Name Input 
             const nameInput = block.querySelector('span > div.col-xs-12 input');
             if (nameInput) {
-                await humanClick(nameInput); 
-                await sleep(200);
-                await typeAndTrigger(nameInput, p.name); 
-                await sleep(300);
+                await humanType(nameInput, p.name, true); 
+                await humanSleep(500, 150); // Ruk ruk kar bharna
             }
 
             // 2. Age Input 
             const ageInput = block.querySelector('div.col-sm-1 > input');
             if (ageInput) {
-                await humanClick(ageInput); 
-                await sleep(200);
-                await typeAndTrigger(ageInput, p.age); 
-                await sleep(300);
+                await humanType(ageInput, p.age, true); 
+                await humanSleep(400, 100);
             }
 
             // 3. Gender Dropdown 
             const genderSelect = block.querySelector('div.col-sm-2 > select');
             if (genderSelect) {
                 await humanClick(genderSelect); 
-                await sleep(200);
+                await humanSleep(300, 80);
                 genderSelect.value = p.gender; 
                 genderSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 genderSelect.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-                await sleep(300);
+                await humanSleep(600, 150); // Agle passenger/field se pehle pause
             }
         }
 
         // 4. Tick "Book only if confirm berths are allotted" 
         try {
+            await humanSleep(600, 200); // Padha aur scroll kiya
+            window.scrollBy({ top: gaussianRandom(200, 50), behavior: 'smooth' });
+            await humanSleep(400, 100);
+
             const confirmLabel = getElementByXPath('//label[contains(text(), "Book only if")]') 
                                  || document.querySelector('span div:nth-of-type(2) > label');
             if (confirmLabel) {
                 await humanClick(confirmLabel);
-                await sleep(500);
+                await humanSleep(700, 150);
             }
-        } catch (e) {
-            console.log("No confirm berth option found or error:", e);
-        }
+        } catch (e) {}
 
         // 5. Select Payment Mode (BHIM/UPI)
         try {
-            
             const upiRadio = getElementByXPath('//*[@id="2"]/div/div[2]') 
                              || document.querySelector('tr:nth-of-type(2) div.ui-radiobutton-box');
-
             if (upiRadio) {
                 await humanClick(upiRadio);
-                await sleep(500);
+                await humanSleep(800, 200);
             } 
-        } catch (e) {
-            console.log("Payment selection error:", e);
-        }
+        } catch (e) {}
 
-        // ==========================================================
-        // ENFORCE MINIMUM 15 SECONDS WAIT BEFORE CONTINUE
-        // ==========================================================
-        const elapsedTime = Date.now() - startTime;
-        const requiredTime = 15000; // 15 seconds strict rule
-        if (elapsedTime < requiredTime) {
-            const remainingTime = requiredTime - elapsedTime;
-            
-            await realTimeSleep(remainingTime);
-        }
+        // 15 SECOND KA BEKAR WAIT HATA DIYA GAYA HAI. 
+        // Ab typing aur selection mein waqt laga hai jo human proof hai.
+        await humanSleep(600, 100); // Final check pause before continue
 
         // 6. Click Continue Button
         const continueBtn = getElementByXPath('//*[@id="psgn-form"]/form/div/div[1]/p-sidebar/div/div/div[2]/button') 
                             || document.querySelector('div.pull-right > button');
                             
         if (continueBtn) {
-            
             await humanClick(continueBtn);
         }
 
@@ -828,8 +795,9 @@
                 captchaInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
                 let retries = 0;
-                while (retries < 20 && captchaImg.src.length < 100) {
-                    await sleep(200);
+                // Delay for checking captcha image fixed (20ms instead of 200ms) to speed up sending
+                while (retries < 100 && captchaImg.src.length < 100) {
+                    await sleep(20);
                     retries++;
                 }
 
@@ -839,13 +807,12 @@
                 }
                 lastCaptchaSrc = captchaImg.src;
 
-                
                 const solved = await solveTrueCaptcha(captchaImg, captchaInput);
 
                 if (solved) {
                     const finalBtn = document.querySelector('.btnDefault.train_Search');
                     if (finalBtn) {
-                        await sleep(200); 
+                        await humanSleep(400, 100); 
                         await humanClick(finalBtn);
                         
                         let checkTimer = 0;
@@ -867,25 +834,23 @@
 
                         if (localCaptchaSolved) break;
                         if (errorFound) {
-                            await typeAndTrigger(captchaInput, '');
-                            await sleep(1000);
+                            await humanType(captchaInput, '', true);
+                            await humanSleep(1000, 200);
                             continue;
                         }
-
                     } else {
-                        await sleep(1000);
+                        await humanSleep(1000, 200);
                     }
                 } else {
-                    await sleep(1000);
+                    await humanSleep(1000, 200);
                 }
             } else {
-                await sleep(1000);
+                await humanSleep(1000, 200);
             }
         }
 
         if(localCaptchaSolved) {
             window.captchaSolved = true;
-            
         }
     }
 
@@ -895,61 +860,61 @@
     async function executePaymentPhase() {
         if (window.paymentExecuted) return;
         
-
-        // Wait for Angular payment wrapper to load properly
         await waitFor('app-payment', 5000);
-        await sleep(1500); 
+        await humanSleep(1500, 300); 
 
         function getByXpath(xpath) {
-            try {
-                return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-            } catch (e) { return null; }
+            try { return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue; } 
+            catch (e) { return null; }
         }
 
-        // STEP 1: Click BHIM/ UPI/ USSD 
         const step1Xpath = '//*[@id="pay-type"]/span/div[3]/span';
         let step1El = getByXpath(step1Xpath) || 
                       Array.from(document.querySelectorAll('div.col-sm-9 div > span')).find(el => el.innerText.includes('BHIM/ UPI/ USSD')) ||
                       Array.from(document.querySelectorAll('span')).find(el => el.innerText.trim() === 'BHIM/ UPI/ USSD');
         if (step1El) {
             await humanClick(step1El);
-            await sleep(800); 
+            await humanSleep(800, 150); 
         }
 
-        // STEP 2: Click Continue 
         const step2Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[2]/div/div/div[2]/button';
-        let step2El = getByXpath(step2Xpath) || 
-                      Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
+        let step2El = getByXpath(step2Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
         if (step2El && window.getComputedStyle(step2El).display !== 'none') {
             await humanClick(step2El);
-            await sleep(800);
+            await humanSleep(800, 150);
         }
 
-// STEP 3: Click inside Bank Type Gateway Grid (JSON step 3)
-        const step3Xpath = '//*[@id="bank-type"]/div/table/tr/span[2]/td/div/div';
-        let step3El = getByXpath(step3Xpath) || 
-                      document.querySelector('#bank-type span:nth-of-type(2) div > div') ||
-                      (document.querySelectorAll('#bank-type span')[2] ? document.querySelectorAll('#bank-type span')[2].querySelector('div') : null);
+        // --- NEW STEP 3: DYNAMIC PAYTM SELECTION ---
+        let step3El = null;
+        const allBankTexts = document.querySelectorAll('.bank-text span');
+        for (let i = 0; i < allBankTexts.length; i++) {
+            if (allBankTexts[i].innerText.toUpperCase().includes('PAYTM')) {
+                // Paytm mil gaya kisi bhi line mein, uska parent clickable box le lega
+                step3El = allBankTexts[i].closest('.border-all') || allBankTexts[i].closest('div[tabindex="0"]') || allBankTexts[i];
+                break;
+            }
+        }
+        
+        // Agar galti se PAYTM option load nahi hua, toh original fallback code chalega
+        if (!step3El) {
+            const step3Xpath = '//*[@id="bank-type"]/div/table/tr/span[2]/td/div/div';
+            step3El = getByXpath(step3Xpath) || document.querySelector('#bank-type span:nth-of-type(2) div > div') ||
+                          (document.querySelectorAll('#bank-type span')[2] ? document.querySelectorAll('#bank-type span')[2].querySelector('div') : null);
+        }
+
         if (step3El) {
             await humanClick(step3El);
-            await sleep(800);
+            await humanSleep(800, 150);
         }
         
-        
-        
-        
-        // STEP 4: Click Pay & Book 
         const step4Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[1]/div/div/div[2]/div[2]/button';
-        let step4El = getByXpath(step4Xpath) || 
-                      Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
+        let step4El = getByXpath(step4Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
         if (step4El) {
-            
             await humanClick(step4El);
             window.paymentExecuted = true;
-            await sleep(1000);
+            await humanSleep(1000, 200);
         }
     }
-
 
     // ============================================================
     // 4. MAIN ORCHESTRATOR LOOP (SPA Router)
@@ -961,24 +926,18 @@
             const url = window.location.href;
             
             if (url.includes('train-search') || url === 'https://www.irctc.co.in/nget/') {
-                // FIXED LOGIN DETECTION LOGIC
                 const loginLink = document.querySelector('a.search_btn.loginText');
                 const isLoginLinkVisible = loginLink && window.getComputedStyle(loginLink).display !== 'none';
                 const isLoginModalOpen = document.querySelector('app-login') !== null;
                 
                 if (isLoginLinkVisible || isLoginModalOpen) {
                     if (!window.loginExecuted || isLoginModalOpen) {
-                        
                         await executeRecorderLogin();
-                    } else {
-                        
                     }
                 } else {
-                    // Executing EXACT JSON replay immediately when logged in
                     if (!window.journeyDetailsFilled) {
                         await executeJourneyDetailsPhase();
                     } else {
-                        
                         window.trainBooked = false; 
                         window.captchaSolved = false;
                         window.passengerFilled = false; 
@@ -990,38 +949,23 @@
                 if (!window.trainBooked) {
                     if (BOOKING_DETAILS.trainNumber && BOOKING_DETAILS.classCode) {
                         await executeTrainListPhase();
-                    } else {
-                        
                     }
-                } else {
-                    
                 }
             }
             else if (url.includes('booking/psgninput')) {
-                // PASSENGER PHASE TRIGGER
                 if (!window.passengerFilled) {
                     await executePassengerPhase();
-                } else {
-                    
                 }
             }
             else if (url.includes('booking/reviewBooking')) {
                 if (!window.captchaSolved) {
-                    
                     await executeReviewPhase();
-                } else {
-                    
                 }
             }
             else if (url.includes('payment/bkgPaymentOptions')) {
                 if (!window.paymentExecuted) {
                     await executePaymentPhase();
-                } else {
-                    
                 }
-            }
-            else {
-                
             }
             
             await sleep(1000);
