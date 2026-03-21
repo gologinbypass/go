@@ -20,7 +20,7 @@
     const BOOKING_DETAILS = {
         fromStation: "KQR ",      
         toStation: "LDH ",        
-        date: "20/04/2026",      
+        date: "20/05/2026",      
         trainNumber: "13307",   
         classCode: "SL",        
         quota: "GENERAL",
