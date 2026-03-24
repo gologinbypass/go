@@ -4,7 +4,7 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started with Full Injector (Login + Journey + Passenger)!");
+    console.log("BMW PRO Automation Started with Advanced Login Detection & Python Injector!");
 
     const originalError = console.error;
     console.error = function(...args) {
@@ -24,21 +24,21 @@
     // 0. DYNAMIC CONFIGURATION (Login, Journey & Tatkal Setup)
     // ============================================================
     const DEFAULT_CONFIG = {
-        // ---- LOGIN & JOURNEY DETAILS ADDED HERE (No UI boxes required) ----
+        // ---- LOGIN & JOURNEY DETAILS (No extra boxes in UI) ----
         USERNAME: "Babu123s",
         PASSWORD: "g6gf77TN4tA54k#",
         FROM_CODE: "BSB",
         TO_CODE: "CSMT",
         DATE_DMY: "20/10/2025",
         CLASS_NAME: "Sleeper (SL)",
-        // -------------------------------------------------------------------
+        // --------------------------------------------------------
         trainNumber: "13307",
         classCode: "SL",
         quota: "TATKAL",
         ACTime: "09:59:00",
         SLTime: "10:59:00",
         GNTime: "07:59:00",
-        // Passenger Details Configuration from Python Logic
+        // Passenger Details Configuration
         passengers:[
             { name: "", age: "", gender: "M" }
         ],
@@ -53,7 +53,7 @@
     let savedConfig = JSON.parse(localStorage.getItem('BMW_CONFIG')) || {};
     let BMW_CONFIG = { ...DEFAULT_CONFIG, ...savedConfig };
     
-    // Ensure nested fields arrays exist if updating from older version
+    // Ensure nested fields arrays exist
     if (!BMW_CONFIG.passengers || BMW_CONFIG.passengers.length === 0) {
         BMW_CONFIG.passengers =[{ name: "", age: "", gender: "M" }];
     }
@@ -63,7 +63,7 @@
     }
 
     // State Trackers
-    window.automationStarted = false; // NEW STATE FOR START BUTTON
+    window.automationStarted = false; 
     window.loginExecuted = false;
     window.journeyExecuted = false;
     window.trainBooked = false;
@@ -185,6 +185,18 @@
     }
     startAntiIdle(); 
 
+    // Robust Login Status Checker
+    function isUserLoggedIn() {
+        const allTags = document.querySelectorAll('a, button, span, div.h_head1');
+        for (let el of allTags) {
+            let txt = el.innerText ? el.innerText.trim().toUpperCase() : '';
+            if (txt === "LOGOUT" || txt.includes("WELCOME,")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ============================================================
     // 2. UI CREATION (Status Bar + Passenger Recorder)
     // ============================================================
@@ -289,7 +301,6 @@
             updateReqStatus("AUTOMATION STARTED!");
         });
 
-        // Passenger List Render Logic
         function renderPsgnList() {
             const list = document.getElementById('bmw-psgn-list');
             list.innerHTML = '';
@@ -333,7 +344,6 @@
             renderPsgnList();
         });
 
-        // Event listeners for Save Config
         document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; });
         document.getElementById('bmw-status-class').addEventListener('change', (e) => { BMW_CONFIG.classCode = e.target.value; });
         document.getElementById('bmw-status-quota').addEventListener('change', (e) => { BMW_CONFIG.quota = e.target.value; });
@@ -457,32 +467,27 @@
     }
 
     // ============================================================
-    // 3. NEW INJECTED PHASES (Login & Journey Auto-Fill)
+    // 3. INJECTED PHASES (Login & Python Logic Journey Auto-Fill)
     // ============================================================
     
-    // JSON RECORDER LOGIN PHASE
+    // LOGIN PHASE
     async function executeLoginPhase() {
         if (window.loginExecuted) return;
         updateReqStatus("EXECUTING LOGIN...");
 
-        // Ensure login popup/sidebar is open
+        let loginTrigger = document.querySelector('.header-fix button') || document.querySelector('a.search_btn.loginText') || document.querySelector('a[aria-label*="Login"]');
         let userInput = document.querySelector('input[formcontrolname="userid"]') || document.querySelector('[aria-label="User Name"]');
-        if (!userInput) {
-            // Click the menu/login button to open login form based on JSON trace
-            let loginTrigger = document.querySelector('.header-fix button') || document.querySelector('a.loginText') || document.querySelector('a[aria-label="Click here to Login in application"]');
-            if (loginTrigger) {
-                await humanClick(loginTrigger);
-                await sleep(1000);
-            }
+        
+        if (!userInput && loginTrigger) {
+            await humanClick(loginTrigger);
+            await sleep(1500);
             userInput = document.querySelector('input[formcontrolname="userid"]') || document.querySelector('[aria-label="User Name"]');
         }
 
         if (userInput) {
-            // Fill Username
             await typeAndTrigger(userInput, BMW_CONFIG.USERNAME);
             await sleep(300);
 
-            // Fill Password
             let passInput = document.querySelector('input[formcontrolname="password"]') || document.querySelector('[aria-label="Password"]');
             if (passInput) {
                 await typeAndTrigger(passInput, BMW_CONFIG.PASSWORD);
@@ -494,12 +499,11 @@
             if (signInBtn) {
                 await humanClick(signInBtn);
                 window.loginExecuted = true;
-                updateReqStatus("LOGIN CLICKED! WAITING FOR SUCCESS...");
             }
         }
     }
 
-    // PYTHON SCRIPT JOURNEY PHASE
+    // JOURNEY DETAILS (Python logic converted exactly to JS)
     async function executeJourneyFillPhase() {
         if (window.journeyExecuted) return;
         updateReqStatus("FILLING JOURNEY DETAILS...");
@@ -507,69 +511,85 @@
         await waitFor('p-autocomplete[formcontrolname="origin"] input', 10000);
 
         // 1. FROM Station
-        let fromBox = document.querySelector('p-autocomplete[formcontrolname="origin"] input') || document.querySelector('[aria-label*="Enter From station"]');
+        let fromBox = document.querySelector('p-autocomplete[formcontrolname="origin"] input') || document.querySelector('[aria-label*="From station"]');
         if (fromBox) {
+            fromBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await typeAndTrigger(fromBox, BMW_CONFIG.FROM_CODE);
-            await sleep(600);
-            fromBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            await sleep(300);
+            await sleep(500);
+            // Sirf Enter press hoga arrow nahi - Python strict logic
+            fromBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+            await sleep(400);
         }
 
         // 2. TO Station
-        let toBox = document.querySelector('p-autocomplete[formcontrolname="destination"] input') || document.querySelector('[aria-label*="Enter To station"]');
+        let toBox = document.querySelector('p-autocomplete[formcontrolname="destination"] input') || document.querySelector('[aria-label*="To station"]');
         if (toBox) {
+            toBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await typeAndTrigger(toBox, BMW_CONFIG.TO_CODE);
-            await sleep(600);
-            toBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            await sleep(300);
+            await sleep(500);
+            toBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+            await sleep(400);
         }
 
         // 3. DATE
         let dateBox = document.querySelector('p-calendar[formcontrolname="journeyDate"] input');
         if (dateBox) {
+            dateBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await humanClick(dateBox);
             await sleep(400);
-            // Simulating python Ctrl+A / Backspace with direct value assignment
+            
+            // Python's Ctrl+A, Backspace logic
             dateBox.value = '';
             dateBox.dispatchEvent(new Event('input', { bubbles: true }));
             await sleep(200);
+            
             await typeAndTrigger(dateBox, BMW_CONFIG.DATE_DMY);
             await sleep(400);
-            // Close calendar
-            dateBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            
+            // Press Escape to close calendar
+            dateBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
             document.body.click(); 
             await sleep(400);
         }
 
         // 4. CLASS
-        let classDropdown = document.querySelector('p-dropdown[formcontrolname="journeyClass"]');
+        let classDropdown = Array.from(document.querySelectorAll('p-dropdown')).find(el => el.getAttribute('formcontrolname') === 'journeyClass');
         if (classDropdown) {
-            await humanClick(classDropdown);
-            await sleep(500);
-            let classOptions = document.querySelectorAll('p-dropdownitem li span');
-            let targetClass = Array.from(classOptions).find(el => el.innerText.trim() === BMW_CONFIG.CLASS_NAME);
-            if (targetClass) {
-                await humanClick(targetClass);
-                await sleep(300);
+            let trigger = classDropdown.querySelector('.ui-dropdown-trigger');
+            if (trigger) {
+                trigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await humanClick(trigger);
+                await sleep(500);
+                let options = document.querySelectorAll('p-dropdownitem li span');
+                let targetClass = Array.from(options).find(el => el.innerText.trim() === BMW_CONFIG.CLASS_NAME);
+                if (targetClass) {
+                    await humanClick(targetClass);
+                    await sleep(300);
+                }
             }
         }
 
         // 5. QUOTA
-        let quotaDropdown = document.querySelector('p-dropdown[formcontrolname="journeyQuota"]');
+        let quotaDropdown = Array.from(document.querySelectorAll('p-dropdown')).find(el => el.getAttribute('formcontrolname') === 'journeyQuota');
         if (quotaDropdown) {
-            await humanClick(quotaDropdown);
-            await sleep(500);
-            let quotaOptions = document.querySelectorAll('p-dropdownitem li span');
-            let targetQuota = Array.from(quotaOptions).find(el => el.innerText.trim().toUpperCase() === BMW_CONFIG.quota.toUpperCase());
-            if (targetQuota) {
-                await humanClick(targetQuota);
-                await sleep(300);
+            let trigger = quotaDropdown.querySelector('.ui-dropdown-trigger');
+            if (trigger) {
+                trigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await humanClick(trigger);
+                await sleep(500);
+                let options = document.querySelectorAll('p-dropdownitem li span');
+                let targetQuota = Array.from(options).find(el => el.innerText.trim().toUpperCase() === BMW_CONFIG.quota.toUpperCase());
+                if (targetQuota) {
+                    await humanClick(targetQuota);
+                    await sleep(300);
+                }
             }
         }
 
         // 6. SEARCH BUTTON
         let searchBtn = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Search'));
         if (searchBtn) {
+            searchBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
             updateReqStatus("CLICKING SEARCH...");
             await humanClick(searchBtn);
             window.journeyExecuted = true;
@@ -601,7 +621,6 @@
 
         if (!foundTrainBlock) return; 
 
-        // TIMING CHECK
         const now = new Date();
         const currentHour = now.getHours();
 
@@ -992,18 +1011,24 @@
             
             // AUTOMATION ROUTING
             if (url.includes('train-search') || url === 'https://www.irctc.co.in/nget/' || url.endsWith('nget/')) {
-                // Check Login Status (If LOGOUT button is visible, user is logged in)
-                let loginTextEl = document.querySelector('a.search_btn.loginText, a[aria-label="Click here to Logout in application"], a[aria-label="Click here to Logout"]');
-                let isLoggedIn = loginTextEl && loginTextEl.innerText.toUpperCase().includes('LOGOUT');
                 
-                if (!isLoggedIn && !window.loginExecuted) {
-                    await executeLoginPhase();
-                } 
-                else if (isLoggedIn && !window.journeyExecuted) {
-                    await executeJourneyFillPhase();
+                let isLoggedIn = isUserLoggedIn(); // Robust check (Welcome, / Logout)
+                
+                if (!isLoggedIn) {
+                    if (!window.loginExecuted) {
+                        await executeLoginPhase();
+                    } else {
+                        // Jab tak user Captcha daalke completely andar na chala jaye
+                        updateReqStatus("WAITING / SOLVE LOGIN CAPTCHA...");
+                    }
                 } 
                 else {
-                    updateReqStatus("WAITING / SOLVE LOGIN CAPTCHA...");
+                    // Jaise hi login detect hoga (isLoggedIn = true), sidha Journey Fill hoga
+                    if (!window.journeyExecuted) {
+                        await executeJourneyFillPhase();
+                    } else {
+                        updateReqStatus("JOURNEY DETAILS FILLED. WAITING...");
+                    }
                 }
 
                 // Reset internal flags just in case user comes back to search page
