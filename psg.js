@@ -4,7 +4,7 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started with Advanced Login Detection & Pure Calendar Clicker!");
+    console.log("BMW PRO Automation Started - UI Removed, Auto-Run Enabled!");
 
     const originalError = console.error;
     console.error = function(...args) {
@@ -21,7 +21,7 @@
     let SPEED_MULTIPLIER = 1;
 
     // ============================================================
-    // 0. DYNAMIC CONFIGURATION (Login, Journey & Tatkal Setup)
+    // 0. DYNAMIC CONFIGURATION (Edit values directly here)
     // ============================================================
     const DEFAULT_CONFIG = {
         // ---- LOGIN & JOURNEY DETAILS ----
@@ -29,19 +29,19 @@
         PASSWORD: "g6gf77TN4tA54k#",
         FROM_CODE: "BSB",
         TO_CODE: "CSMT",
-        DATE_DMY: "20/04/2026", // Tumhare example ke hisaab se 20 April 2026
+        DATE_DMY: "20/04/2026", // Format DD/MM/YYYY
         CLASS_NAME: "Sleeper (SL)",
         // ---------------------------------
         trainNumber: "13307",
         classCode: "SL",
-        quota: "TATKAL",
-        ACTime: "09:59:00",
-        SLTime: "10:59:00",
-        GNTime: "07:59:00",
+        quota: "GENERAL",
+        ACTime: "10:00:00",
+        SLTime: "11:00:00",
+        GNTime: "08:00:00",
         passengers:[
-            { name: "", age: "", gender: "M" }
+            { name: "Rahul", age: "25", gender: "M" }
         ],
-        mobile: "",
+        mobile: "9876543210",
         autoUpgrade: true,
         confirmBerths: true,
         insurance: "yes",
@@ -49,6 +49,7 @@
         noFood: false
     };
 
+    // Load from memory if exists, otherwise use the code default above
     let savedConfig = JSON.parse(localStorage.getItem('BMW_CONFIG')) || {};
     let BMW_CONFIG = { ...DEFAULT_CONFIG, ...savedConfig };
     
@@ -56,11 +57,7 @@
         BMW_CONFIG.passengers =[{ name: "", age: "", gender: "M" }];
     }
 
-    function saveConfig() {
-        localStorage.setItem('BMW_CONFIG', JSON.stringify(BMW_CONFIG));
-    }
-
-    window.automationStarted = false; 
+    // Execution States
     window.loginExecuted = false;
     window.journeyExecuted = false;
     window.trainBooked = false;
@@ -74,11 +71,8 @@
     function log(msg) { console.log(`[BOT] ${msg}`); }
     
     function updateReqStatus(msg) {
+        // Now only prints to console instead of a bulky UI box
         log(`STATUS UPDATE: ${msg}`);
-        const statusEl = document.getElementById('bmw-current-status');
-        if (statusEl) {
-            statusEl.innerText = msg;
-        }
     }
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms < 150 ? ms : (ms * SPEED_MULTIPLIER)));
@@ -187,161 +181,38 @@
     }
 
     // ============================================================
-    // 2. UI CREATION 
+    // 2. MINI TIMER UI CREATION (Only shows during TATKAL countdown)
     // ============================================================
-    function initBMWUI() {
-        if (document.getElementById('bmw-status-container')) return;
+    function initMiniTimerUI() {
+        if (document.getElementById('bmw-timer-container')) return;
         const target = document.body || document.documentElement;
         if (!target) return;
 
         const container = document.createElement('div');
-        container.id = 'bmw-status-container';
-        container.innerHTML = `
-            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.9); border-radius: 8px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #00ff00; width: 280px; box-shadow: 0px 4px 15px rgba(0,255,0,0.3); backdrop-filter: blur(5px); overflow: hidden;">
-                <div style="display:flex; justify-content: space-between; align-items:center; background: #111; padding: 10px 15px; border-bottom: 1px solid #00ff00;">
-                    <div style="font-size: 14px; font-weight: bold; color: #00ff00; letter-spacing: 1px;">BMW PRO</div>
-                    <div style="display:flex; gap: 5px;">
-                        <button id="bmw-start-btn" style="background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #007bff; font-size:12px; transition: 0.2s;">START</button>
-                        <button id="bmw-save-btn" style="background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #28a745; font-size:12px; transition: 0.2s;">SAVE</button>
-                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">▼</button>
-                    </div>
-                </div>
-                <div id="bmw-inputs-section" style="display: none; padding: 10px; max-height: 450px; overflow-y: auto;">
-                    <div style="margin-bottom: 10px; display:flex; justify-content: space-between; gap: 8px;">
-                        <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; text-align:center; outline:none;">
-                        <select id="bmw-status-class" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
-                            <option value="SL">SL</option><option value="1A">1A</option><option value="2A">2A</option>
-                            <option value="3A">3A</option><option value="3E">3E</option><option value="CC">CC</option>
-                            <option value="EC">EC</option><option value="2S">2S</option>
-                        </select>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                        <select id="bmw-status-quota" style="width:100%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
-                            <option value="GENERAL">GENERAL</option>
-                            <option value="TATKAL">TATKAL</option>
-                            <option value="PREMIUM TATKAL">PREMIUM TATKAL</option>
-                        </select>
-                    </div>
-                    <div style="border-top: 1px dashed #00ff00; padding-top: 10px; margin-top: 5px;">
-                        <div style="font-size:12px; font-weight:bold; color:#0f0; margin-bottom:5px;">PASSENGERS (Max 6)</div>
-                        <div id="bmw-psgn-list"></div>
-                        <button id="bmw-add-psgn-btn" style="width:100%; margin-top:5px; background:#444; color:#0f0; border:1px solid #0f0; padding:4px; font-size:11px; cursor:pointer;">+ ADD PASSENGER</button>
-                    </div>
-                    <div style="border-top: 1px dashed #00ff00; padding-top: 10px; margin-top: 10px; display:flex; flex-direction:column; gap:6px;">
-                        <input id="bmw-psgn-mobile" type="text" placeholder="Mobile Number" value="${BMW_CONFIG.mobile}" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
-                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-auto" ${BMW_CONFIG.autoUpgrade?'checked':''}> Auto Upgradation</label>
-                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-confirm" ${BMW_CONFIG.confirmBerths?'checked':''}> Confirm Berths Only</label>
-                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-nofood" ${BMW_CONFIG.noFood?'checked':''}> I don't want Food</label>
-                        <select id="bmw-psgn-ins" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
-                            <option value="yes" ${BMW_CONFIG.insurance === 'yes' ? 'selected' : ''}>Travel Insurance: YES</option>
-                            <option value="no" ${BMW_CONFIG.insurance === 'no' ? 'selected' : ''}>Travel Insurance: NO</option>
-                        </select>
-                        <select id="bmw-psgn-pay" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
-                            <option value="UPI" ${BMW_CONFIG.paymentMethod === 'UPI' ? 'selected' : ''}>Payment: BHIM/UPI</option>
-                            <option value="Card" ${BMW_CONFIG.paymentMethod === 'Card' ? 'selected' : ''}>Payment: CARD/NET BANKING</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="padding: 10px 15px; background: rgba(0, 20, 0, 0.6); border-top: 1px solid #00ff00; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
-                    <div id="bmw-status-wrapper">
-                        <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
-                        <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting to Start...</div>
-                    </div>
-                    <div id="bmw-timer-wrapper" style="display: none;">
-                        <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
-                        <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 8px rgba(255,23,68,0.6); letter-spacing: 2px; font-family: 'Courier New', monospace;"></div>
-                    </div>
-                </div>
-            </div>
+        container.id = 'bmw-timer-container';
+        // Minimal Top-Right Styling
+        container.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 9999999; 
+            background: rgba(0, 0, 0, 0.9); 
+            border: 2px solid #00e5ff; 
+            border-radius: 8px; 
+            padding: 10px 15px; 
+            font-family: 'Courier New', monospace; 
+            box-shadow: 0px 4px 15px rgba(0,229,255,0.3); 
+            backdrop-filter: blur(5px);
+            text-align: center;
+            display: none; /* Hidden by default */
         `;
+        
+        container.innerHTML = `
+            <div id="bmw-countdown-title" style="font-size: 12px; color: #00e5ff; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">WAITING...</div>
+            <div id="bmw-countdown-time" style="font-size: 24px; font-weight: bold; color: #ff1744; text-shadow: 0 0 10px rgba(255,23,68,0.7); letter-spacing: 2px;">00:00:00.00</div>
+        `;
+        
         target.appendChild(container);
-
-        document.getElementById('bmw-status-class').value = BMW_CONFIG.classCode;
-        document.getElementById('bmw-status-quota').value = BMW_CONFIG.quota;
-
-        const toggleBtn = document.getElementById('bmw-toggle-btn');
-        const inputsSection = document.getElementById('bmw-inputs-section');
-        toggleBtn.addEventListener('click', () => {
-            if (inputsSection.style.display === 'none') {
-                inputsSection.style.display = 'block';
-                toggleBtn.innerText = '▲';
-            } else {
-                inputsSection.style.display = 'none';
-                toggleBtn.innerText = '▼';
-            }
-        });
-
-        document.getElementById('bmw-start-btn').addEventListener('click', () => {
-            window.automationStarted = true;
-            document.getElementById('bmw-start-btn').style.background = '#dc3545';
-            document.getElementById('bmw-start-btn').innerText = 'RUNNING';
-            updateReqStatus("AUTOMATION STARTED!");
-        });
-
-        function renderPsgnList() {
-            const list = document.getElementById('bmw-psgn-list');
-            list.innerHTML = '';
-            BMW_CONFIG.passengers.forEach((p, idx) => {
-                const row = document.createElement('div');
-                row.style = "display:flex; gap:3px; margin-bottom:5px; width:100%;";
-                row.innerHTML = `
-                    <input class="p-name" type="text" placeholder="Name" value="${p.name}" style="width:45%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
-                    <input class="p-age" type="number" placeholder="Age" value="${p.age}" style="width:20%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
-                    <select class="p-gender" style="width:20%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
-                        <option value="M" ${p.gender==='M'?'selected':''}>M</option>
-                        <option value="F" ${p.gender==='F'?'selected':''}>F</option>
-                        <option value="T" ${p.gender==='T'?'selected':''}>T</option>
-                    </select>
-                    <button class="p-remove" data-idx="${idx}" style="width:15%; background:#d32f2f; color:white; border:none; cursor:pointer; font-weight:bold; border-radius:2px;">X</button>
-                `;
-                list.appendChild(row);
-            });
-
-            document.querySelectorAll('.p-name').forEach((el, i) => el.addEventListener('input', e => { BMW_CONFIG.passengers[i].name = e.target.value; }));
-            document.querySelectorAll('.p-age').forEach((el, i) => el.addEventListener('input', e => { BMW_CONFIG.passengers[i].age = e.target.value; }));
-            document.querySelectorAll('.p-gender').forEach((el, i) => el.addEventListener('change', e => { BMW_CONFIG.passengers[i].gender = e.target.value; }));
-            
-            document.querySelectorAll('.p-remove').forEach(el => {
-                el.addEventListener('click', e => {
-                    const idx = parseInt(e.target.getAttribute('data-idx'));
-                    BMW_CONFIG.passengers.splice(idx, 1);
-                    renderPsgnList();
-                });
-            });
-        }
-        
-        renderPsgnList();
-
-        document.getElementById('bmw-add-psgn-btn').addEventListener('click', () => {
-            if (BMW_CONFIG.passengers.length >= 6) {
-                alert("Maximum 6 passengers allowed");
-                return;
-            }
-            BMW_CONFIG.passengers.push({ name: "", age: "", gender: "M" });
-            renderPsgnList();
-        });
-
-        document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; });
-        document.getElementById('bmw-status-class').addEventListener('change', (e) => { BMW_CONFIG.classCode = e.target.value; });
-        document.getElementById('bmw-status-quota').addEventListener('change', (e) => { BMW_CONFIG.quota = e.target.value; });
-        
-        document.getElementById('bmw-save-btn').addEventListener('click', () => {
-            BMW_CONFIG.trainNumber = document.getElementById('bmw-status-train').value.trim();
-            BMW_CONFIG.classCode = document.getElementById('bmw-status-class').value;
-            BMW_CONFIG.quota = document.getElementById('bmw-status-quota').value;
-            BMW_CONFIG.mobile = document.getElementById('bmw-psgn-mobile').value.trim();
-            BMW_CONFIG.autoUpgrade = document.getElementById('bmw-psgn-auto').checked;
-            BMW_CONFIG.confirmBerths = document.getElementById('bmw-psgn-confirm').checked;
-            BMW_CONFIG.noFood = document.getElementById('bmw-psgn-nofood').checked;
-            BMW_CONFIG.insurance = document.getElementById('bmw-psgn-ins').value;
-            BMW_CONFIG.paymentMethod = document.getElementById('bmw-psgn-pay').value;
-
-            saveConfig();
-            
-            const btn = document.getElementById('bmw-save-btn');
-            btn.innerText = 'SAVED!';
-            setTimeout(() => { btn.innerText = 'SAVE'; }, 2000);
-        });
     }
 
     async function smartWaitWithDisplay(targetTimeStr, mainTitle, subDetail) {
@@ -356,14 +227,13 @@
             return;
         }
 
-        const statusWrapper = document.getElementById('bmw-status-wrapper');
-        const timerWrapper = document.getElementById('bmw-timer-wrapper');
+        const timerContainer = document.getElementById('bmw-timer-container');
         const countdownTitle = document.getElementById('bmw-countdown-title');
         const countdownTime = document.getElementById('bmw-countdown-time');
 
-        if (statusWrapper && timerWrapper && countdownTitle) {
-            statusWrapper.style.display = 'none';
-            timerWrapper.style.display = 'block';
+        // Show the timer box
+        if (timerContainer && countdownTitle) {
+            timerContainer.style.display = 'block';
             countdownTitle.innerText = `${mainTitle} - ${targetTimeStr}`;
         }
 
@@ -372,10 +242,8 @@
             const diff = targetDate - current;
             
             if (diff <= 0) {
-                if (statusWrapper && timerWrapper) {
-                    timerWrapper.style.display = 'none';
-                    statusWrapper.style.display = 'block';
-                }
+                // Hide the timer box when time is up
+                if (timerContainer) timerContainer.style.display = 'none';
                 break;
             }
 
@@ -507,14 +375,14 @@
                         let nextBtn = document.querySelector('a.ui-datepicker-next');
                         if(nextBtn) {
                             await humanClick(nextBtn);
-                            await sleep(800); // CRITICAL FIX: Wait 800ms for IRCTC calendar to animate and update DOM before next loop
+                            await sleep(800); // Wait for IRCTC calendar to animate
                         } else { break; }
                     } else {
                         // Current date is after target date, click PREV
                         let prevBtn = document.querySelector('a.ui-datepicker-prev');
                         if(prevBtn) {
                             await humanClick(prevBtn);
-                            await sleep(800); // CRITICAL FIX: Wait 800ms
+                            await sleep(800); // Wait for IRCTC calendar to animate
                         } else { break; }
                     }
                 }
@@ -959,29 +827,15 @@
     }
 
     // ============================================================
-    // 5. MAIN ORCHESTRATOR LOOP (SPA Router)
+    // 5. MAIN ORCHESTRATOR LOOP (SPA Router) - AUTO-RUNNING
     // ============================================================
     async function mainLoop() {
-        initBMWUI();
+        initMiniTimerUI();
 
         while (true) {
             const url = window.location.href;
-            const uiContainer = document.getElementById('bmw-status-container');
-            
-            if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
-                if (uiContainer) uiContainer.style.display = 'none';
-            } else {
-                if (uiContainer) uiContainer.style.display = 'block';
-            }
-
-            if (!window.automationStarted) {
-                updateReqStatus("READY. CLICK 'START' TO BEGIN.");
-                await sleep(1000);
-                continue;
-            }
             
             if (url.includes('train-search') || url === 'https://www.irctc.co.in/nget/' || url.endsWith('nget/')) {
-                
                 let isLoggedIn = isUserLoggedIn(); 
                 
                 if (!isLoggedIn) {
@@ -1007,36 +861,23 @@
                 if (!window.trainBooked) {
                     if (BMW_CONFIG.trainNumber && BMW_CONFIG.classCode) {
                         await executeTrainListPhase();
-                    } else {
-                        updateReqStatus("ENTER TRAIN NUMBER!");
                     }
-                } else {
-                    updateReqStatus("BOOKED! WAITING NEXT PAGE...");
                 }
             }
             else if (url.includes('booking/psgninput') || url.includes('passenger')) {
                 if (!window.passengerExecuted) {
                     await executePassengerPhase();
-                } else {
-                    updateReqStatus("WAITING FOR REVIEW PAGE...");
                 }
             }
             else if (url.includes('booking/reviewBooking')) {
                 if (!window.captchaSolved) {
                     await executeReviewPhase();
-                } else {
-                    updateReqStatus("VERIFIED! PROCEED TO PAY...");
                 }
             }
             else if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
                 if (!window.paymentExecuted) {
                     await executePaymentPhase(); 
-                } else {
-                    updateReqStatus("WAITING FOR PAYMENT PROCESS...");
                 }
-            }
-            else {
-                updateReqStatus("IDLE / WAITING...");
             }
             
             await sleep(1000);
