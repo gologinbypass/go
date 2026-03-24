@@ -4,7 +4,7 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started with Full Python Passenger Injector!");
+    console.log("BMW PRO Automation Started with Full Injector (Login + Journey + Passenger)!");
 
     const originalError = console.error;
     console.error = function(...args) {
@@ -21,17 +21,25 @@
     let SPEED_MULTIPLIER = 1;
 
     // ============================================================
-    // 0. DYNAMIC CONFIGURATION (Saved in Local Storage)
+    // 0. DYNAMIC CONFIGURATION (Login, Journey & Tatkal Setup)
     // ============================================================
     const DEFAULT_CONFIG = {
+        // ---- LOGIN & JOURNEY DETAILS ADDED HERE (No UI boxes required) ----
+        USERNAME: "Babu123s",
+        PASSWORD: "g6gf77TN4tA54k#",
+        FROM_CODE: "BSB",
+        TO_CODE: "CSMT",
+        DATE_DMY: "20/10/2025",
+        CLASS_NAME: "Sleeper (SL)",
+        // -------------------------------------------------------------------
         trainNumber: "13307",
         classCode: "SL",
-        quota: "GENERAL",
-        ACTime: "10:00:00",
-        SLTime: "11:00:00",
-        GNTime: "08:00:00",
+        quota: "TATKAL",
+        ACTime: "09:59:00",
+        SLTime: "10:59:00",
+        GNTime: "07:59:00",
         // Passenger Details Configuration from Python Logic
-        passengers: [
+        passengers:[
             { name: "", age: "", gender: "M" }
         ],
         mobile: "",
@@ -47,7 +55,7 @@
     
     // Ensure nested fields arrays exist if updating from older version
     if (!BMW_CONFIG.passengers || BMW_CONFIG.passengers.length === 0) {
-        BMW_CONFIG.passengers = [{ name: "", age: "", gender: "M" }];
+        BMW_CONFIG.passengers =[{ name: "", age: "", gender: "M" }];
     }
 
     function saveConfig() {
@@ -55,8 +63,11 @@
     }
 
     // State Trackers
+    window.automationStarted = false; // NEW STATE FOR START BUTTON
+    window.loginExecuted = false;
+    window.journeyExecuted = false;
     window.trainBooked = false;
-    window.passengerExecuted = false; // Added Passenger State
+    window.passengerExecuted = false; 
     window.captchaSolved = false;
     window.paymentExecuted = false; 
 
@@ -190,8 +201,9 @@
                 <div style="display:flex; justify-content: space-between; align-items:center; background: #111; padding: 10px 15px; border-bottom: 1px solid #00ff00;">
                     <div style="font-size: 14px; font-weight: bold; color: #00ff00; letter-spacing: 1px;">BMW PRO</div>
                     <div style="display:flex; gap: 5px;">
+                        <button id="bmw-start-btn" style="background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #007bff; font-size:12px; transition: 0.2s;">START</button>
                         <button id="bmw-save-btn" style="background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #28a745; font-size:12px; transition: 0.2s;">SAVE</button>
-                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">тЦ╝</button>
+                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">▼</button>
                     </div>
                 </div>
                 
@@ -243,7 +255,7 @@
                 <div style="padding: 10px 15px; background: rgba(0, 20, 0, 0.6); border-top: 1px solid #00ff00; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
                     <div id="bmw-status-wrapper">
                         <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
-                        <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
+                        <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting to Start...</div>
                     </div>
                     <div id="bmw-timer-wrapper" style="display: none;">
                         <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
@@ -262,11 +274,19 @@
         toggleBtn.addEventListener('click', () => {
             if (inputsSection.style.display === 'none') {
                 inputsSection.style.display = 'block';
-                toggleBtn.innerText = 'тЦ▓';
+                toggleBtn.innerText = '▲';
             } else {
                 inputsSection.style.display = 'none';
-                toggleBtn.innerText = 'тЦ╝';
+                toggleBtn.innerText = '▼';
             }
+        });
+
+        // START BUTTON LISTENER
+        document.getElementById('bmw-start-btn').addEventListener('click', () => {
+            window.automationStarted = true;
+            document.getElementById('bmw-start-btn').style.background = '#dc3545';
+            document.getElementById('bmw-start-btn').innerText = 'RUNNING';
+            updateReqStatus("AUTOMATION STARTED!");
         });
 
         // Passenger List Render Logic
@@ -437,7 +457,128 @@
     }
 
     // ============================================================
-    // 3. PHASE EXECUTORS
+    // 3. NEW INJECTED PHASES (Login & Journey Auto-Fill)
+    // ============================================================
+    
+    // JSON RECORDER LOGIN PHASE
+    async function executeLoginPhase() {
+        if (window.loginExecuted) return;
+        updateReqStatus("EXECUTING LOGIN...");
+
+        // Ensure login popup/sidebar is open
+        let userInput = document.querySelector('input[formcontrolname="userid"]') || document.querySelector('[aria-label="User Name"]');
+        if (!userInput) {
+            // Click the menu/login button to open login form based on JSON trace
+            let loginTrigger = document.querySelector('.header-fix button') || document.querySelector('a.loginText') || document.querySelector('a[aria-label="Click here to Login in application"]');
+            if (loginTrigger) {
+                await humanClick(loginTrigger);
+                await sleep(1000);
+            }
+            userInput = document.querySelector('input[formcontrolname="userid"]') || document.querySelector('[aria-label="User Name"]');
+        }
+
+        if (userInput) {
+            // Fill Username
+            await typeAndTrigger(userInput, BMW_CONFIG.USERNAME);
+            await sleep(300);
+
+            // Fill Password
+            let passInput = document.querySelector('input[formcontrolname="password"]') || document.querySelector('[aria-label="Password"]');
+            if (passInput) {
+                await typeAndTrigger(passInput, BMW_CONFIG.PASSWORD);
+                await sleep(300);
+            }
+
+            // Click SIGN IN
+            let signInBtn = Array.from(document.querySelectorAll('app-login button')).find(b => b.innerText.includes('SIGN IN'));
+            if (signInBtn) {
+                await humanClick(signInBtn);
+                window.loginExecuted = true;
+                updateReqStatus("LOGIN CLICKED! WAITING FOR SUCCESS...");
+            }
+        }
+    }
+
+    // PYTHON SCRIPT JOURNEY PHASE
+    async function executeJourneyFillPhase() {
+        if (window.journeyExecuted) return;
+        updateReqStatus("FILLING JOURNEY DETAILS...");
+
+        await waitFor('p-autocomplete[formcontrolname="origin"] input', 10000);
+
+        // 1. FROM Station
+        let fromBox = document.querySelector('p-autocomplete[formcontrolname="origin"] input') || document.querySelector('[aria-label*="Enter From station"]');
+        if (fromBox) {
+            await typeAndTrigger(fromBox, BMW_CONFIG.FROM_CODE);
+            await sleep(600);
+            fromBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            await sleep(300);
+        }
+
+        // 2. TO Station
+        let toBox = document.querySelector('p-autocomplete[formcontrolname="destination"] input') || document.querySelector('[aria-label*="Enter To station"]');
+        if (toBox) {
+            await typeAndTrigger(toBox, BMW_CONFIG.TO_CODE);
+            await sleep(600);
+            toBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            await sleep(300);
+        }
+
+        // 3. DATE
+        let dateBox = document.querySelector('p-calendar[formcontrolname="journeyDate"] input');
+        if (dateBox) {
+            await humanClick(dateBox);
+            await sleep(400);
+            // Simulating python Ctrl+A / Backspace with direct value assignment
+            dateBox.value = '';
+            dateBox.dispatchEvent(new Event('input', { bubbles: true }));
+            await sleep(200);
+            await typeAndTrigger(dateBox, BMW_CONFIG.DATE_DMY);
+            await sleep(400);
+            // Close calendar
+            dateBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            document.body.click(); 
+            await sleep(400);
+        }
+
+        // 4. CLASS
+        let classDropdown = document.querySelector('p-dropdown[formcontrolname="journeyClass"]');
+        if (classDropdown) {
+            await humanClick(classDropdown);
+            await sleep(500);
+            let classOptions = document.querySelectorAll('p-dropdownitem li span');
+            let targetClass = Array.from(classOptions).find(el => el.innerText.trim() === BMW_CONFIG.CLASS_NAME);
+            if (targetClass) {
+                await humanClick(targetClass);
+                await sleep(300);
+            }
+        }
+
+        // 5. QUOTA
+        let quotaDropdown = document.querySelector('p-dropdown[formcontrolname="journeyQuota"]');
+        if (quotaDropdown) {
+            await humanClick(quotaDropdown);
+            await sleep(500);
+            let quotaOptions = document.querySelectorAll('p-dropdownitem li span');
+            let targetQuota = Array.from(quotaOptions).find(el => el.innerText.trim().toUpperCase() === BMW_CONFIG.quota.toUpperCase());
+            if (targetQuota) {
+                await humanClick(targetQuota);
+                await sleep(300);
+            }
+        }
+
+        // 6. SEARCH BUTTON
+        let searchBtn = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Search'));
+        if (searchBtn) {
+            updateReqStatus("CLICKING SEARCH...");
+            await humanClick(searchBtn);
+            window.journeyExecuted = true;
+            await sleep(2000);
+        }
+    }
+
+    // ============================================================
+    // 4. PRE-EXISTING PHASE EXECUTORS
     // ============================================================
     async function executeTrainListPhase() {
         const { trainNumber, classCode, quota, ACTime, SLTime, GNTime } = BMW_CONFIG;
@@ -562,9 +703,6 @@
         }
     }
 
-    // ============================================================
-    // NEW: PASSENGER AUTO FILL PHASE (Injected from Python Code)
-    // ============================================================
     async function executePassengerPhase() {
         if (window.passengerExecuted) return;
         
@@ -578,12 +716,10 @@
             return;
         }
 
-        // 1. Fill passengers dynamically
         for (let i = 0; i < validPassengers.length; i++) {
             let p = validPassengers[i];
             updateReqStatus(`FILLING PASSENGER #${i+1}...`);
 
-            // If index > 0, click '+ Add Passenger'
             if (i > 0) {
                 let addBtnXpath = "//span[contains(text(),'+ Add Passenger')] | //a[contains(text(),'+ Add Passenger')]";
                 let addBtn = getElementByXPath(addBtnXpath);
@@ -598,20 +734,17 @@
             let form = forms[i];
             if (!form) continue;
 
-            // Fill Name
             let nameInput = form.querySelector('p-autocomplete input, input[formcontrolname="passengerName"], input[placeholder="Passenger Name"]');
             if (nameInput) {
                 nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 await typeAndTrigger(nameInput, p.name);
             }
 
-            // Fill Age
             let ageInput = form.querySelector('input[formcontrolname="passengerAge"], input[placeholder="Age"]');
             if (ageInput) {
                 await typeAndTrigger(ageInput, p.age.toString());
             }
 
-            // Fill Gender
             let genderSelect = form.querySelector('select[formcontrolname="passengerGender"]');
             if (genderSelect) {
                 genderSelect.value = p.gender;
@@ -622,14 +755,12 @@
 
         updateReqStatus("FILLING CONTACT & PREFERENCES...");
 
-        // 2. Mobile Number
         let mobileInput = document.querySelector('input[formcontrolname="mobileNumber"]');
         if (mobileInput && BMW_CONFIG.mobile) {
             mobileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await typeAndTrigger(mobileInput, BMW_CONFIG.mobile);
         }
 
-        // 3. Auto Upgradation Checkbox
         if (BMW_CONFIG.autoUpgrade) {
             let autoUpLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Consider for Auto Upgradation'));
             if (autoUpLabel) {
@@ -638,7 +769,6 @@
             }
         }
 
-        // 4. Confirm Berths Only Checkbox
         if (BMW_CONFIG.confirmBerths) {
             let cbLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Book only if confirm berths'));
             if (cbLabel) {
@@ -647,7 +777,6 @@
             }
         }
 
-        // 5. Travel Insurance Radio
         if (BMW_CONFIG.insurance.toLowerCase() === 'yes') {
             let insLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Yes, and I accept the') || el.innerText.includes('Yes, I want travel insurance'));
             if (insLabel) {
@@ -662,7 +791,6 @@
             }
         }
 
-        // 6. Global No Food Check (If selected)
         if (BMW_CONFIG.noFood) {
             let noFoodLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes("I don't want Food/Beverages"));
             if (noFoodLabel) {
@@ -671,7 +799,6 @@
                 if (checkbox && !checkbox.checked) {
                     await humanClick(noFoodLabel);
                     await humanSleep(800, 200);
-                    // Handle OK button on popup
                     let okBtn = Array.from(document.querySelectorAll('p-footer button, div.ui-dialog-footer button')).find(el => el.innerText.includes('OK'));
                     if (okBtn) {
                         await humanClick(okBtn);
@@ -680,37 +807,20 @@
             }
         }
 
-// 7. Payment Preference Method on Passenger Page (UPI vs Normal)
-if (BMW_CONFIG.paymentMethod === 'UPI') {
-    // Chrome DevTools Record kiya hua direct selector BHIM/UPI ke liye
-    let upiRadioBox = document.querySelector('tr:nth-of-type(2) div.ui-radiobutton-box');
-    
-    if (upiRadioBox) {
-        // Element ko screen ke center mein scroll karenge
-        upiRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Direct us box par click karenge jo record hua tha
-        await humanClick(upiRadioBox);
-    } else {
-        console.log("UPI Payment option DOM mein nahi mila.");
-    }
-} else {
-    // Normal (Credit & Debit Cards / Net Banking / Wallets) ke liye selector
-    // Ye usually first row (nth-of-type(1)) mein hota hai
-    let cardRadioBox = document.querySelector('tr:nth-of-type(1) div.ui-radiobutton-box');
-    
-    if (cardRadioBox) {
-        cardRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        await humanClick(cardRadioBox);
-    } else {
-         console.log("Card Payment option DOM mein nahi mila.");
-    }
-}
+        if (BMW_CONFIG.paymentMethod === 'UPI') {
+            let upiRadioBox = document.querySelector('tr:nth-of-type(2) div.ui-radiobutton-box');
+            if (upiRadioBox) {
+                upiRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await humanClick(upiRadioBox);
+            }
+        } else {
+            let cardRadioBox = document.querySelector('tr:nth-of-type(1) div.ui-radiobutton-box');
+            if (cardRadioBox) {
+                cardRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await humanClick(cardRadioBox);
+            }
+        }
 
-        
-        
-        
-
-        // 8. Final Submit with human review scroll
         updateReqStatus("FINAL REVIEW & SUBMIT...");
         window.scrollBy(0, -300);
         await humanSleep(300, 200);
@@ -806,8 +916,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
         }
     }
 
-    // PAYMENT GATEWAY SELECTION PHASE (Automated)
-    // ============================================================
     async function executePaymentPhase() {
         if (window.paymentExecuted) return;
         
@@ -815,7 +923,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
         await waitFor('app-payment', 5000);
         await humanSleep(180, 100); 
 
-        // Step 1: Click BHIM/ UPI/ USSD
         const step1Xpath = '//*[@id="pay-type"]/span/div[3]/span';
         let step1El = getElementByXPath(step1Xpath) || Array.from(document.querySelectorAll('span')).find(el => el.innerText.trim() === 'BHIM/ UPI/ USSD');
         if (step1El) {
@@ -823,7 +930,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
             await humanSleep(230, 150); 
         }
 
-        // Step 2: Click Continue if present
         const step2Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[2]/div/div/div[2]/button';
         let step2El = getElementByXPath(step2Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
         if (step2El && window.getComputedStyle(step2El).display !== 'none') {
@@ -831,7 +937,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
             await humanSleep(215, 150);
         }
 
-        // Step 3: Click Paytm
         let step3El = null;
         const allBankTexts = document.querySelectorAll('.bank-text span');
         for (let i = 0; i < allBankTexts.length; i++) {
@@ -851,7 +956,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
             await humanSleep(210, 150);
         }
         
-        // Step 4: Click Pay & Book
         const step4Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[1]/div/div/div[2]/div[2]/button';
         let step4El = getElementByXPath(step4Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
         if (step4El) {
@@ -864,7 +968,7 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
 
 
     // ============================================================
-    // 4. MAIN ORCHESTRATOR LOOP (SPA Router)
+    // 5. MAIN ORCHESTRATOR LOOP (SPA Router)
     // ============================================================
     async function mainLoop() {
         initBMWUI();
@@ -873,17 +977,38 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
             const url = window.location.href;
             const uiContainer = document.getElementById('bmw-status-container');
             
-            // Allow UI to be visible on Passenger Page to edit config, only hide on strict payment
             if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
                 if (uiContainer) uiContainer.style.display = 'none';
             } else {
                 if (uiContainer) uiContainer.style.display = 'block';
             }
+
+            // CHECK IF START BUTTON IS PRESSED
+            if (!window.automationStarted) {
+                updateReqStatus("READY. CLICK 'START' TO BEGIN.");
+                await sleep(1000);
+                continue;
+            }
             
-            if (url.includes('train-search')) {
-                updateReqStatus("MANUAL SEARCH PAGE...");
+            // AUTOMATION ROUTING
+            if (url.includes('train-search') || url === 'https://www.irctc.co.in/nget/' || url.endsWith('nget/')) {
+                // Check Login Status (If LOGOUT button is visible, user is logged in)
+                let loginTextEl = document.querySelector('a.search_btn.loginText, a[aria-label="Click here to Logout in application"], a[aria-label="Click here to Logout"]');
+                let isLoggedIn = loginTextEl && loginTextEl.innerText.toUpperCase().includes('LOGOUT');
+                
+                if (!isLoggedIn && !window.loginExecuted) {
+                    await executeLoginPhase();
+                } 
+                else if (isLoggedIn && !window.journeyExecuted) {
+                    await executeJourneyFillPhase();
+                } 
+                else {
+                    updateReqStatus("WAITING / SOLVE LOGIN CAPTCHA...");
+                }
+
+                // Reset internal flags just in case user comes back to search page
                 window.trainBooked = false; 
-                window.passengerExecuted = false; // Reset Passenger state
+                window.passengerExecuted = false; 
                 window.captchaSolved = false;
                 window.paymentExecuted = false; 
             }
@@ -899,7 +1024,6 @@ if (BMW_CONFIG.paymentMethod === 'UPI') {
                 }
             }
             else if (url.includes('booking/psgninput') || url.includes('passenger')) {
-                // Auto Execute Passenger Phase when on this page!
                 if (!window.passengerExecuted) {
                     await executePassengerPhase();
                 } else {
