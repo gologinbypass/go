@@ -27,9 +27,9 @@
         trainNumber: "13307",
         classCode: "SL",
         quota: "GENERAL",
-        ACTime: "09:59:00",
-        SLTime: "10:59:00",
-        GNTime: "07:59:00",
+        ACTime: "10:00:00",
+        SLTime: "11:00:00",
+        GNTime: "08:00:00",
         // Passenger Details Configuration from Python Logic
         passengers: [
             { name: "", age: "", gender: "M" }
