@@ -27,9 +27,9 @@
         // ---- LOGIN & JOURNEY DETAILS ----
         USERNAME: "Babu123s",
         PASSWORD: "g6gf77TN4tA54k#",
-        FROM_CODE: "BSB",
-        TO_CODE: "CSMT",
-        DATE_DMY: "20/10/2025",
+        FROM_CODE: "KQR ",
+        TO_CODE: "LDH ",
+        DATE_DMY: "20/04/2025",
         CLASS_NAME: "Sleeper (SL)",
         // ---------------------------------
         trainNumber: "13307",
