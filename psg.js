@@ -1,12 +1,10 @@
-
-
 (async function() {
     'use strict';
 
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started in Full-Auto Payment Mode!");
+    console.log("BMW PRO Automation Started with Full Python Passenger Injector!");
 
     const originalError = console.error;
     console.error = function(...args) {
@@ -31,10 +29,26 @@
         quota: "GENERAL",
         ACTime: "09:59:00",
         SLTime: "10:59:00",
-        GNTime: "07:59:00"
+        GNTime: "07:59:00",
+        // Passenger Details Configuration from Python Logic
+        passengers: [
+            { name: "", age: "", gender: "M" }
+        ],
+        mobile: "",
+        autoUpgrade: true,
+        confirmBerths: true,
+        insurance: "yes",
+        paymentMethod: "UPI",
+        noFood: false
     };
 
-    let BMW_CONFIG = JSON.parse(localStorage.getItem('BMW_CONFIG')) || DEFAULT_CONFIG;
+    let savedConfig = JSON.parse(localStorage.getItem('BMW_CONFIG')) || {};
+    let BMW_CONFIG = { ...DEFAULT_CONFIG, ...savedConfig };
+    
+    // Ensure nested fields arrays exist if updating from older version
+    if (!BMW_CONFIG.passengers || BMW_CONFIG.passengers.length === 0) {
+        BMW_CONFIG.passengers = [{ name: "", age: "", gender: "M" }];
+    }
 
     function saveConfig() {
         localStorage.setItem('BMW_CONFIG', JSON.stringify(BMW_CONFIG));
@@ -42,8 +56,9 @@
 
     // State Trackers
     window.trainBooked = false;
+    window.passengerExecuted = false; // Added Passenger State
     window.captchaSolved = false;
-    window.paymentExecuted = false; // Added Payment State
+    window.paymentExecuted = false; 
 
     // ============================================================
     // 1. HELPER FUNCTIONS & STEALTH ENGINES
@@ -60,9 +75,8 @@
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms < 150 ? ms : (ms * SPEED_MULTIPLIER)));
     const realTimeSleep = (ms) => new Promise(r => setTimeout(r, ms));
-    const humanSleep = (ms, jitter = 0) => new Promise(r => setTimeout(r, ms + Math.floor(Math.random() * jitter))); // Fix for payment block
+    const humanSleep = (ms, jitter = 0) => new Promise(r => setTimeout(r, ms + Math.floor(Math.random() * jitter))); 
 
-    // Helper for XPath selections in Payment section
     function getElementByXPath(xpath) {
         try {
             return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
@@ -123,7 +137,7 @@
     }
 
     async function typeAndTrigger(element, value) {
-        if (!element) return;
+        if (!element || value == null || value === "") return;
         element.focus();
         element.click();
         element.value = '';
@@ -161,7 +175,7 @@
     startAntiIdle(); 
 
     // ============================================================
-    // 2. UI CREATION (Status Bar)
+    // 2. UI CREATION (Status Bar + Passenger Recorder)
     // ============================================================
     function initBMWUI() {
         if (document.getElementById('bmw-status-container')) return;
@@ -171,46 +185,69 @@
         const container = document.createElement('div');
         container.id = 'bmw-status-container';
         container.innerHTML = `
-            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.85); border-radius: 8px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #00ff00; width: 200px; box-shadow: 0px 4px 15px rgba(0,255,0,0.3); backdrop-filter: blur(5px); overflow: hidden;">
+            <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.9); border-radius: 8px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #00ff00; width: 280px; box-shadow: 0px 4px 15px rgba(0,255,0,0.3); backdrop-filter: blur(5px); overflow: hidden;">
                 
                 <div style="display:flex; justify-content: space-between; align-items:center; background: #111; padding: 10px 15px; border-bottom: 1px solid #00ff00;">
                     <div style="font-size: 14px; font-weight: bold; color: #00ff00; letter-spacing: 1px;">BMW PRO</div>
                     <div style="display:flex; gap: 5px;">
                         <button id="bmw-save-btn" style="background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 0 5px #28a745; font-size:12px; transition: 0.2s;">SAVE</button>
-                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">▼</button>
+                        <button id="bmw-toggle-btn" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size:12px; transition: 0.2s;" title="Toggle Inputs">тЦ╝</button>
                     </div>
                 </div>
                 
-                <div style="padding: 15px;">
-                    <div id="bmw-inputs-section" style="display: none; margin-bottom: 15px;">
-                        <div style="margin-bottom: 10px; display:flex; justify-content: space-between; gap: 8px;">
-                            <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; text-align:center; outline:none;">
-                            
-                            <select id="bmw-status-class" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
-                                <option value="SL">SL</option><option value="1A">1A</option><option value="2A">2A</option>
-                                <option value="3A">3A</option><option value="3E">3E</option><option value="CC">CC</option>
-                                <option value="EC">EC</option><option value="2S">2S</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-bottom: 5px;">
-                            <select id="bmw-status-quota" style="width:100%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
-                                <option value="GENERAL">GENERAL</option>
-                                <option value="TATKAL">TATKAL</option>
-                                <option value="PREMIUM TATKAL">PREMIUM TATKAL</option>
-                            </select>
-                        </div>
+                <div id="bmw-inputs-section" style="display: none; padding: 10px; max-height: 450px; overflow-y: auto;">
+                    
+                    <!-- Search Config -->
+                    <div style="margin-bottom: 10px; display:flex; justify-content: space-between; gap: 8px;">
+                        <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; text-align:center; outline:none;">
+                        <select id="bmw-status-class" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
+                            <option value="SL">SL</option><option value="1A">1A</option><option value="2A">2A</option>
+                            <option value="3A">3A</option><option value="3E">3E</option><option value="CC">CC</option>
+                            <option value="EC">EC</option><option value="2S">2S</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <select id="bmw-status-quota" style="width:100%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; outline:none;">
+                            <option value="GENERAL">GENERAL</option>
+                            <option value="TATKAL">TATKAL</option>
+                            <option value="PREMIUM TATKAL">PREMIUM TATKAL</option>
+                        </select>
                     </div>
 
-                    <div style="padding: 10px 20px; background: rgba(0, 20, 0, 0.6); border: 1px solid #00ff00; border-radius: 6px; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
-                        <div id="bmw-status-wrapper">
-                            <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
-                            <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
-                        </div>
-                        <div id="bmw-timer-wrapper" style="display: none;">
-                            <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
-                            <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 8px rgba(255,23,68,0.6); letter-spacing: 2px; font-family: 'Courier New', monospace;"></div>
-                        </div>
+                    <!-- Passenger Form Area Inject -->
+                    <div style="border-top: 1px dashed #00ff00; padding-top: 10px; margin-top: 5px;">
+                        <div style="font-size:12px; font-weight:bold; color:#0f0; margin-bottom:5px;">PASSENGERS (Max 6)</div>
+                        <div id="bmw-psgn-list"></div>
+                        <button id="bmw-add-psgn-btn" style="width:100%; margin-top:5px; background:#444; color:#0f0; border:1px solid #0f0; padding:4px; font-size:11px; cursor:pointer;">+ ADD PASSENGER</button>
+                    </div>
+
+                    <!-- Prefs Inject -->
+                    <div style="border-top: 1px dashed #00ff00; padding-top: 10px; margin-top: 10px; display:flex; flex-direction:column; gap:6px;">
+                        <input id="bmw-psgn-mobile" type="text" placeholder="Mobile Number" value="${BMW_CONFIG.mobile}" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
+                        
+                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-auto" ${BMW_CONFIG.autoUpgrade?'checked':''}> Auto Upgradation</label>
+                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-confirm" ${BMW_CONFIG.confirmBerths?'checked':''}> Confirm Berths Only</label>
+                        <label style="color:#fff; font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bmw-psgn-nofood" ${BMW_CONFIG.noFood?'checked':''}> I don't want Food</label>
+                        
+                        <select id="bmw-psgn-ins" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
+                            <option value="yes" ${BMW_CONFIG.insurance === 'yes' ? 'selected' : ''}>Travel Insurance: YES</option>
+                            <option value="no" ${BMW_CONFIG.insurance === 'no' ? 'selected' : ''}>Travel Insurance: NO</option>
+                        </select>
+                        <select id="bmw-psgn-pay" style="width:100%; background:#222; color:#0f0; border:1px solid #444; padding:5px; font-size:11px;">
+                            <option value="UPI" ${BMW_CONFIG.paymentMethod === 'UPI' ? 'selected' : ''}>Payment: BHIM/UPI</option>
+                            <option value="Card" ${BMW_CONFIG.paymentMethod === 'Card' ? 'selected' : ''}>Payment: CARD/NET BANKING</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="padding: 10px 15px; background: rgba(0, 20, 0, 0.6); border-top: 1px solid #00ff00; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
+                    <div id="bmw-status-wrapper">
+                        <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
+                        <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
+                    </div>
+                    <div id="bmw-timer-wrapper" style="display: none;">
+                        <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
+                        <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 8px rgba(255,23,68,0.6); letter-spacing: 2px; font-family: 'Courier New', monospace;"></div>
                     </div>
                 </div>
             </div>
@@ -225,21 +262,74 @@
         toggleBtn.addEventListener('click', () => {
             if (inputsSection.style.display === 'none') {
                 inputsSection.style.display = 'block';
-                toggleBtn.innerText = '▲';
+                toggleBtn.innerText = 'тЦ▓';
             } else {
                 inputsSection.style.display = 'none';
-                toggleBtn.innerText = '▼';
+                toggleBtn.innerText = 'тЦ╝';
             }
         });
 
-        document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; saveConfig(); });
-        document.getElementById('bmw-status-class').addEventListener('change', (e) => { BMW_CONFIG.classCode = e.target.value; saveConfig(); });
-        document.getElementById('bmw-status-quota').addEventListener('change', (e) => { BMW_CONFIG.quota = e.target.value; saveConfig(); });
+        // Passenger List Render Logic
+        function renderPsgnList() {
+            const list = document.getElementById('bmw-psgn-list');
+            list.innerHTML = '';
+            BMW_CONFIG.passengers.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.style = "display:flex; gap:3px; margin-bottom:5px; width:100%;";
+                row.innerHTML = `
+                    <input class="p-name" type="text" placeholder="Name" value="${p.name}" style="width:45%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
+                    <input class="p-age" type="number" placeholder="Age" value="${p.age}" style="width:20%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
+                    <select class="p-gender" style="width:20%; font-size:11px; padding:3px; background:#222; color:#0f0; border:1px solid #444; outline:none;">
+                        <option value="M" ${p.gender==='M'?'selected':''}>M</option>
+                        <option value="F" ${p.gender==='F'?'selected':''}>F</option>
+                        <option value="T" ${p.gender==='T'?'selected':''}>T</option>
+                    </select>
+                    <button class="p-remove" data-idx="${idx}" style="width:15%; background:#d32f2f; color:white; border:none; cursor:pointer; font-weight:bold; border-radius:2px;">X</button>
+                `;
+                list.appendChild(row);
+            });
+
+            document.querySelectorAll('.p-name').forEach((el, i) => el.addEventListener('input', e => { BMW_CONFIG.passengers[i].name = e.target.value; }));
+            document.querySelectorAll('.p-age').forEach((el, i) => el.addEventListener('input', e => { BMW_CONFIG.passengers[i].age = e.target.value; }));
+            document.querySelectorAll('.p-gender').forEach((el, i) => el.addEventListener('change', e => { BMW_CONFIG.passengers[i].gender = e.target.value; }));
+            
+            document.querySelectorAll('.p-remove').forEach(el => {
+                el.addEventListener('click', e => {
+                    const idx = parseInt(e.target.getAttribute('data-idx'));
+                    BMW_CONFIG.passengers.splice(idx, 1);
+                    renderPsgnList();
+                });
+            });
+        }
+        
+        renderPsgnList();
+
+        document.getElementById('bmw-add-psgn-btn').addEventListener('click', () => {
+            if (BMW_CONFIG.passengers.length >= 6) {
+                alert("Maximum 6 passengers allowed");
+                return;
+            }
+            BMW_CONFIG.passengers.push({ name: "", age: "", gender: "M" });
+            renderPsgnList();
+        });
+
+        // Event listeners for Save Config
+        document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; });
+        document.getElementById('bmw-status-class').addEventListener('change', (e) => { BMW_CONFIG.classCode = e.target.value; });
+        document.getElementById('bmw-status-quota').addEventListener('change', (e) => { BMW_CONFIG.quota = e.target.value; });
         
         document.getElementById('bmw-save-btn').addEventListener('click', () => {
             BMW_CONFIG.trainNumber = document.getElementById('bmw-status-train').value.trim();
             BMW_CONFIG.classCode = document.getElementById('bmw-status-class').value;
             BMW_CONFIG.quota = document.getElementById('bmw-status-quota').value;
+            
+            BMW_CONFIG.mobile = document.getElementById('bmw-psgn-mobile').value.trim();
+            BMW_CONFIG.autoUpgrade = document.getElementById('bmw-psgn-auto').checked;
+            BMW_CONFIG.confirmBerths = document.getElementById('bmw-psgn-confirm').checked;
+            BMW_CONFIG.noFood = document.getElementById('bmw-psgn-nofood').checked;
+            BMW_CONFIG.insurance = document.getElementById('bmw-psgn-ins').value;
+            BMW_CONFIG.paymentMethod = document.getElementById('bmw-psgn-pay').value;
+
             saveConfig();
             
             const btn = document.getElementById('bmw-save-btn');
@@ -424,7 +514,7 @@
                 if (confirmationBtn) await humanClick(confirmationBtn);
                 
                 await waitForIrctcLoader(); 
-                if (document.querySelector('app-passenger-input') || window.location.href.includes('passenger')) {
+                if (document.querySelector('app-passenger-input') || window.location.href.includes('passenger') || window.location.href.includes('psgninput')) {
                     booked = true;
                 }
             }
@@ -456,7 +546,7 @@
                         if (confirmationBtn) await humanClick(confirmationBtn);
                         
                         await waitForIrctcLoader(); 
-                        if (document.querySelector('app-passenger-input') || window.location.href.includes('passenger')) {
+                        if (document.querySelector('app-passenger-input') || window.location.href.includes('passenger') || window.location.href.includes('psgninput')) {
                             booked = true;
                             break; 
                         }
@@ -471,6 +561,171 @@
             updateReqStatus("BOOKED! GOING TO PASSENGER PAGE...");
         }
     }
+
+    // ============================================================
+    // NEW: PASSENGER AUTO FILL PHASE (Injected from Python Code)
+    // ============================================================
+    async function executePassengerPhase() {
+        if (window.passengerExecuted) return;
+        
+        updateReqStatus("INJECTING PASSENGER DETAILS...");
+        await waitFor('app-passenger', 5000);
+        await humanSleep(300, 200);
+
+        let validPassengers = BMW_CONFIG.passengers.filter(p => p.name.trim() !== "");
+        if (validPassengers.length === 0) {
+            updateReqStatus("NO PASSENGER DATA SET!");
+            return;
+        }
+
+        // 1. Fill passengers dynamically
+        for (let i = 0; i < validPassengers.length; i++) {
+            let p = validPassengers[i];
+            updateReqStatus(`FILLING PASSENGER #${i+1}...`);
+
+            // If index > 0, click '+ Add Passenger'
+            if (i > 0) {
+                let addBtnXpath = "//span[contains(text(),'+ Add Passenger')] | //a[contains(text(),'+ Add Passenger')]";
+                let addBtn = getElementByXPath(addBtnXpath);
+                if (addBtn) {
+                    addBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    await humanClick(addBtn);
+                    await humanSleep(300, 100);
+                }
+            }
+
+            let forms = document.querySelectorAll('app-passenger');
+            let form = forms[i];
+            if (!form) continue;
+
+            // Fill Name
+            let nameInput = form.querySelector('p-autocomplete input, input[formcontrolname="passengerName"], input[placeholder="Passenger Name"]');
+            if (nameInput) {
+                nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await typeAndTrigger(nameInput, p.name);
+            }
+
+            // Fill Age
+            let ageInput = form.querySelector('input[formcontrolname="passengerAge"], input[placeholder="Age"]');
+            if (ageInput) {
+                await typeAndTrigger(ageInput, p.age.toString());
+            }
+
+            // Fill Gender
+            let genderSelect = form.querySelector('select[formcontrolname="passengerGender"]');
+            if (genderSelect) {
+                genderSelect.value = p.gender;
+                genderSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            await humanSleep(150, 100);
+        }
+
+        updateReqStatus("FILLING CONTACT & PREFERENCES...");
+
+        // 2. Mobile Number
+        let mobileInput = document.querySelector('input[formcontrolname="mobileNumber"]');
+        if (mobileInput && BMW_CONFIG.mobile) {
+            mobileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await typeAndTrigger(mobileInput, BMW_CONFIG.mobile);
+        }
+
+        // 3. Auto Upgradation Checkbox
+        if (BMW_CONFIG.autoUpgrade) {
+            let autoUpLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Consider for Auto Upgradation'));
+            if (autoUpLabel) {
+                let checkbox = autoUpLabel.parentElement.querySelector('input[type="checkbox"]');
+                if (checkbox && !checkbox.checked) await humanClick(autoUpLabel);
+            }
+        }
+
+        // 4. Confirm Berths Only Checkbox
+        if (BMW_CONFIG.confirmBerths) {
+            let cbLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Book only if confirm berths'));
+            if (cbLabel) {
+                let checkbox = cbLabel.parentElement.querySelector('input[type="checkbox"]');
+                if (checkbox && !checkbox.checked) await humanClick(cbLabel);
+            }
+        }
+
+        // 5. Travel Insurance Radio
+        if (BMW_CONFIG.insurance.toLowerCase() === 'yes') {
+            let insLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('Yes, and I accept the') || el.innerText.includes('Yes, I want travel insurance'));
+            if (insLabel) {
+                let radio = insLabel.parentElement.querySelector('input[type="radio"]');
+                if (radio && !radio.checked) await humanClick(insLabel);
+            }
+        } else {
+            let insLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes('No, I don\'t want travel'));
+            if (insLabel) {
+                let radio = insLabel.parentElement.querySelector('input[type="radio"]');
+                if (radio && !radio.checked) await humanClick(insLabel);
+            }
+        }
+
+        // 6. Global No Food Check (If selected)
+        if (BMW_CONFIG.noFood) {
+            let noFoodLabel = Array.from(document.querySelectorAll('label')).find(el => el.innerText.includes("I don't want Food/Beverages"));
+            if (noFoodLabel) {
+                noFoodLabel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                let checkbox = noFoodLabel.parentElement.querySelector('input[type="checkbox"]');
+                if (checkbox && !checkbox.checked) {
+                    await humanClick(noFoodLabel);
+                    await humanSleep(800, 200);
+                    // Handle OK button on popup
+                    let okBtn = Array.from(document.querySelectorAll('p-footer button, div.ui-dialog-footer button')).find(el => el.innerText.includes('OK'));
+                    if (okBtn) {
+                        await humanClick(okBtn);
+                    }
+                }
+            }
+        }
+
+// 7. Payment Preference Method on Passenger Page (UPI vs Normal)
+if (BMW_CONFIG.paymentMethod === 'UPI') {
+    // Chrome DevTools Record kiya hua direct selector BHIM/UPI ke liye
+    let upiRadioBox = document.querySelector('tr:nth-of-type(2) div.ui-radiobutton-box');
+    
+    if (upiRadioBox) {
+        // Element ko screen ke center mein scroll karenge
+        upiRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Direct us box par click karenge jo record hua tha
+        await humanClick(upiRadioBox);
+    } else {
+        console.log("UPI Payment option DOM mein nahi mila.");
+    }
+} else {
+    // Normal (Credit & Debit Cards / Net Banking / Wallets) ke liye selector
+    // Ye usually first row (nth-of-type(1)) mein hota hai
+    let cardRadioBox = document.querySelector('tr:nth-of-type(1) div.ui-radiobutton-box');
+    
+    if (cardRadioBox) {
+        cardRadioBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await humanClick(cardRadioBox);
+    } else {
+         console.log("Card Payment option DOM mein nahi mila.");
+    }
+}
+
+        
+        
+        
+
+        // 8. Final Submit with human review scroll
+        updateReqStatus("FINAL REVIEW & SUBMIT...");
+        window.scrollBy(0, -300);
+        await humanSleep(300, 200);
+        window.scrollBy(0, 300);
+        await humanSleep(200, 100);
+
+        let continueBtn = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Continue'));
+        if (continueBtn) {
+            continueBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await humanClick(continueBtn);
+            window.passengerExecuted = true;
+            updateReqStatus("PASSENGERS SUBMITTED!");
+        }
+    }
+
 
     async function executeReviewPhase() {
         await waitForSpinner();
@@ -618,8 +873,8 @@
             const url = window.location.href;
             const uiContainer = document.getElementById('bmw-status-container');
             
-            // ✅ HIDE ON PASSENGER & PAYMENT PAGES
-            if (url.includes('booking/psgninput') || url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
+            // Allow UI to be visible on Passenger Page to edit config, only hide on strict payment
+            if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
                 if (uiContainer) uiContainer.style.display = 'none';
             } else {
                 if (uiContainer) uiContainer.style.display = 'block';
@@ -628,8 +883,9 @@
             if (url.includes('train-search')) {
                 updateReqStatus("MANUAL SEARCH PAGE...");
                 window.trainBooked = false; 
+                window.passengerExecuted = false; // Reset Passenger state
                 window.captchaSolved = false;
-                window.paymentExecuted = false; // Reset Payment logic on new search
+                window.paymentExecuted = false; 
             }
             else if (url.includes('booking/train-list')) {
                 if (!window.trainBooked) {
@@ -642,8 +898,13 @@
                     updateReqStatus("BOOKED! WAITING NEXT PAGE...");
                 }
             }
-            else if (url.includes('booking/psgninput')) {
-                updateReqStatus("MANUALLY FILL PASSENGER...");
+            else if (url.includes('booking/psgninput') || url.includes('passenger')) {
+                // Auto Execute Passenger Phase when on this page!
+                if (!window.passengerExecuted) {
+                    await executePassengerPhase();
+                } else {
+                    updateReqStatus("WAITING FOR REVIEW PAGE...");
+                }
             }
             else if (url.includes('booking/reviewBooking')) {
                 if (!window.captchaSolved) {
@@ -654,7 +915,7 @@
             }
             else if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
                 if (!window.paymentExecuted) {
-                    await executePaymentPhase(); // Ab manual nahi auto Payment Gateway select karega
+                    await executePaymentPhase(); 
                 } else {
                     updateReqStatus("WAITING FOR PAYMENT PROCESS...");
                 }
