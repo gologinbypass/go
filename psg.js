@@ -4,7 +4,7 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started with Advanced Login Detection, Python Calendar Logic & Passenger Injector!");
+    console.log("BMW PRO Automation Started with Advanced Login Detection & Pure Calendar Clicker!");
 
     const originalError = console.error;
     console.error = function(...args) {
@@ -27,9 +27,9 @@
         // ---- LOGIN & JOURNEY DETAILS ----
         USERNAME: "Babu123s",
         PASSWORD: "g6gf77TN4tA54k#",
-        FROM_CODE: "KQR ",
-        TO_CODE: "LDH ",
-        DATE_DMY: "04/04/2025",
+        FROM_CODE: "BSB",
+        TO_CODE: "CSMT",
+        DATE_DMY: "20/04/2026", // Tumhare example ke hisaab se 20 April 2026
         CLASS_NAME: "Sleeper (SL)",
         // ---------------------------------
         trainNumber: "13307",
@@ -395,7 +395,7 @@
     }
 
     // ============================================================
-    // 3. INJECTED PHASES (Login & Calendar Navigation Journey Auto-Fill)
+    // 3. INJECTED PHASES (Login & Pure Calendar Click Logic)
     // ============================================================
     
     // LOGIN PHASE
@@ -457,82 +457,69 @@
             await sleep(400);
         }
 
-        // 3. DATE - (Python Translation: Calendar Navigation -> Click -> Typing Tab Fallback)
+        // 3. DATE - (100% PURE CALENDAR CLICK LOGIC - NO TYPING)
         let dateBox = document.querySelector('p-calendar[formcontrolname="journeyDate"] input');
         if (dateBox) {
+            updateReqStatus("SELECTING DATE FROM CALENDAR...");
             dateBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await humanClick(dateBox);
-            await sleep(400);
+            await sleep(800); // Wait for calendar popup to appear completely
 
-            let dateSet = false;
             try {
                 const parts = BMW_CONFIG.DATE_DMY.split('/');
-                if (parts.length === 3) {
-                    const targetDay = parseInt(parts[0], 10).toString(); // "05" -> "5"
-                    const targetMonthIdx = parseInt(parts[1], 10) - 1; // "10" -> 9 (October)
-                    const targetYear = parseInt(parts[2], 10); // "2025"
-                    const monthNames =["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    const targetMonthName = monthNames[targetMonthIdx];
+                const targetDay = parseInt(parts[0], 10).toString(); // e.g. "04" becomes "4"
+                const targetMonthIdx = parseInt(parts[1], 10) - 1; // e.g. "04" becomes 3 (April)
+                const targetYear = parseInt(parts[2], 10); // e.g. 2026
+                const monthNames =["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                
+                // Max 24 steps to find the month, exactly like your python code
+                for(let i=0; i<24; i++) {
+                    let monthEl = document.querySelector('.ui-datepicker-month');
+                    let yearEl = document.querySelector('.ui-datepicker-year');
+                    
+                    if(!monthEl || !yearEl) {
+                        await sleep(500);
+                        continue;
+                    }
 
-                    // Loop to navigate months, just like python script (Max 24 steps)
-                    for(let i=0; i<24; i++) {
-                        let calRoot = document.querySelector('.ui-datepicker');
-                        if(!calRoot) break;
+                    let currentMonthStr = monthEl.innerText.trim();
+                    let currentYear = parseInt(yearEl.innerText.trim(), 10);
+                    let currentMonthIdx = monthNames.findIndex(m => m.toLowerCase() === currentMonthStr.toLowerCase());
 
-                        let currentMonthEl = calRoot.querySelector('.ui-datepicker-month');
-                        let currentYearEl = calRoot.querySelector('.ui-datepicker-year');
-                        if(!currentMonthEl || !currentYearEl) break;
+                    if (currentMonthIdx === -1) continue;
 
-                        let currentMonth = currentMonthEl.innerText.trim();
-                        let currentYear = parseInt(currentYearEl.innerText.trim(), 10);
+                    let currentVal = currentYear * 12 + currentMonthIdx;
+                    let targetVal = targetYear * 12 + targetMonthIdx;
 
-                        // If we are on the target Month & Year
-                        if(currentMonth.toLowerCase() === targetMonthName.toLowerCase() && currentYear === targetYear) {
-                            // Find the specific Day cell and Click
-                            let dayCells = calRoot.querySelectorAll('td:not(.ui-datepicker-other-month) > a.ui-state-default');
-                            for(let dayCell of dayCells) {
-                                if(dayCell.innerText.trim() === targetDay) {
-                                    await humanClick(dayCell); // Perfect Calendar Date Click!
-                                    await sleep(400);
-                                    dateSet = true;
-                                    break;
-                                }
-                            }
-                            break;
-                        } else {
-                            // Navigate to target month
-                            let currentDate = new Date(`${currentMonth} 1, ${currentYear}`);
-                            let targetDate = new Date(`${targetMonthName} 1, ${targetYear}`);
-                            let btn = targetDate > currentDate ? calRoot.querySelector('a.ui-datepicker-next') : calRoot.querySelector('a.ui-datepicker-prev');
-                            if(btn) {
-                                await humanClick(btn);
-                                await sleep(300);
-                            } else {
+                    if (currentVal === targetVal) {
+                        // Correct Month and Year Found! Now find the Exact Day
+                        let dayCells = document.querySelectorAll('td:not(.ui-datepicker-other-month) a.ui-state-default');
+                        for(let cell of dayCells) {
+                            if(cell.innerText.trim() === targetDay) {
+                                await humanClick(cell); 
+                                await sleep(600);
                                 break;
                             }
                         }
+                        break; 
+                    } else if (currentVal < targetVal) {
+                        // Current date is before target date, click NEXT
+                        let nextBtn = document.querySelector('a.ui-datepicker-next');
+                        if(nextBtn) {
+                            await humanClick(nextBtn);
+                            await sleep(800); // CRITICAL FIX: Wait 800ms for IRCTC calendar to animate and update DOM before next loop
+                        } else { break; }
+                    } else {
+                        // Current date is after target date, click PREV
+                        let prevBtn = document.querySelector('a.ui-datepicker-prev');
+                        if(prevBtn) {
+                            await humanClick(prevBtn);
+                            await sleep(800); // CRITICAL FIX: Wait 800ms
+                        } else { break; }
                     }
                 }
             } catch(e) {
                 console.log("Calendar selection error:", e);
-            }
-
-            // Fallback: Agar kisi wajah se click fail ho jaye (Same as Python typing fallback)
-            if (!dateSet) {
-                updateReqStatus("TYPING DATE FALLBACK...");
-                dateBox.value = '';
-                dateBox.dispatchEvent(new Event('input', { bubbles: true }));
-                await sleep(200);
-
-                await typeAndTrigger(dateBox, BMW_CONFIG.DATE_DMY);
-                await sleep(400);
-
-                // CRUCIAL TAB PRESS FOR ANGULAR TO REGISTER IT
-                dateBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', keyCode: 9, bubbles: true }));
-                await sleep(100);
-                dateBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
-                document.body.click(); 
-                await sleep(400);
             }
         }
 
