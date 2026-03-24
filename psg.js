@@ -4,8 +4,6 @@
     if (window.BMW_RUNNING) return;
     window.BMW_RUNNING = true;
 
-    console.log("BMW PRO Automation Started - UI Removed, Auto-Run Enabled!");
-
     const originalError = console.error;
     console.error = function(...args) {
         if (args && args[0] && typeof args[0] === 'string') {
@@ -27,9 +25,9 @@
         // ---- LOGIN & JOURNEY DETAILS ----
         USERNAME: "Babu123s",
         PASSWORD: "g6gf77TN4tA54k#",
-        FROM_CODE: "BSB",
-        TO_CODE: "CSMT",
-        DATE_DMY: "20/04/2026", // Format DD/MM/YYYY
+        FROM_CODE: "KQR",
+        TO_CODE: "LDH",
+        DATE_DMY: "23/05/2026", // Format DD/MM/YYYY
         CLASS_NAME: "Sleeper (SL)",
         // ---------------------------------
         trainNumber: "13307",
@@ -42,7 +40,7 @@
             { name: "Rahul", age: "25", gender: "M" }
         ],
         mobile: "9876543210",
-        autoUpgrade: true,
+        autoUpgrade: false,
         confirmBerths: true,
         insurance: "yes",
         paymentMethod: "UPI",
