@@ -27,7 +27,7 @@
         PASSWORD: "g6gf77TN4tA54k#",
         FROM_CODE: "KQR",
         TO_CODE: "LDH",
-        DATE_DMY: "23/05/2026", // Format DD/MM/YYYY
+        DATE_DMY: "24/05/2026", // Format DD/MM/YYYY
         CLASS_NAME: "Sleeper (SL)",
         // ---------------------------------
         trainNumber: "13307",
