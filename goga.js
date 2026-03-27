@@ -26,10 +26,7 @@
     const DEFAULT_CONFIG = {
         trainNumber: "",
         classCode: "SL",
-        quota: "GENERAL",
-        ACTime: "10:00:00",
-        SLTime: "11:00:00",
-        GNTime: "08:00:00"
+        quota: "GENERAL"
     };
 
     let BMW_CONFIG = JSON.parse(localStorage.getItem('BMW_CONFIG')) || DEFAULT_CONFIG;
@@ -41,6 +38,7 @@
     // State Trackers
     window.trainBooked = false;
     window.captchaSolved = false;
+    window.paymentExecuted = false; 
 
     // ============================================================
     // 1. HELPER FUNCTIONS & STEALTH ENGINES
@@ -57,6 +55,18 @@
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms < 150 ? ms : (ms * SPEED_MULTIPLIER)));
     const realTimeSleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    async function humanSleep(base, variance) {
+        await sleep(base + 250 + Math.random() * variance);
+    }
+
+    function getElementByXPath(xpath) {
+        try {
+            return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        } catch (e) {
+            return null;
+        }
+    }
 
     async function waitFor(selector, timeout = 30000) {
         const start = Date.now();
@@ -160,7 +170,6 @@
         container.innerHTML = `
             <div style="position: fixed; top: 15px; right: 15px; z-index: 9999998; background: rgba(0, 0, 0, 0.85); border-radius: 8px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #00ff00; width: 200px; box-shadow: 0px 4px 15px rgba(0,255,0,0.3); backdrop-filter: blur(5px); overflow: hidden;">
                 
-                <!-- Header with SAVE and Toggle Button -->
                 <div style="display:flex; justify-content: space-between; align-items:center; background: #111; padding: 10px 15px; border-bottom: 1px solid #00ff00;">
                     <div style="font-size: 14px; font-weight: bold; color: #00ff00; letter-spacing: 1px;">BMW PRO</div>
                     <div style="display:flex; gap: 5px;">
@@ -170,7 +179,6 @@
                 </div>
                 
                 <div style="padding: 15px;">
-                    <!-- Dropdown Inputs Section (Hidden by Default) -->
                     <div id="bmw-inputs-section" style="display: none; margin-bottom: 15px;">
                         <div style="margin-bottom: 10px; display:flex; justify-content: space-between; gap: 8px;">
                             <input type="text" id="bmw-status-train" placeholder="Train No" value="${BMW_CONFIG.trainNumber}" style="width:50%; background:#222; color:#0f0; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; font-weight:bold; text-align:center; outline:none;">
@@ -191,16 +199,13 @@
                         </div>
                     </div>
 
-                    <!-- Status & Timer Area (Padding 10px 20px added here) -->
                     <div style="padding: 10px 20px; background: rgba(0, 20, 0, 0.6); border: 1px solid #00ff00; border-radius: 6px; text-align: center; min-height: 55px; display: flex; flex-direction: column; justify-content: center;">
                         
-                        <!-- Normal Status text -->
                         <div id="bmw-status-wrapper">
                             <div style="font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;">Current Process</div>
                             <div id="bmw-current-status" style="font-size: 13px; font-weight: bold; color: #ffeb3b; word-wrap: break-word;">Waiting...</div>
                         </div>
                         
-                        <!-- Timer replaces status here -->
                         <div id="bmw-timer-wrapper" style="display: none;">
                             <div id="bmw-countdown-title" style="font-size: 11px; color: #00e5ff; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;"></div>
                             <div id="bmw-countdown-time" style="font-size: 22px; font-weight: bold; color: #ff1744; text-shadow: 0 0 8px rgba(255,23,68,0.6); letter-spacing: 2px; font-family: 'Courier New', monospace;"></div>
@@ -212,11 +217,9 @@
         `;
         target.appendChild(container);
 
-        // Sync initial values
         document.getElementById('bmw-status-class').value = BMW_CONFIG.classCode;
         document.getElementById('bmw-status-quota').value = BMW_CONFIG.quota;
 
-        // Toggle Expand/Collapse Inputs
         const toggleBtn = document.getElementById('bmw-toggle-btn');
         const inputsSection = document.getElementById('bmw-inputs-section');
         toggleBtn.addEventListener('click', () => {
@@ -229,12 +232,10 @@
             }
         });
 
-        // Auto-save on change in Status Bar
         document.getElementById('bmw-status-train').addEventListener('input', (e) => { BMW_CONFIG.trainNumber = e.target.value; saveConfig(); });
         document.getElementById('bmw-status-class').addEventListener('change', (e) => { BMW_CONFIG.classCode = e.target.value; saveConfig(); });
         document.getElementById('bmw-status-quota').addEventListener('change', (e) => { BMW_CONFIG.quota = e.target.value; saveConfig(); });
         
-        // SAVE Button Binding
         document.getElementById('bmw-save-btn').addEventListener('click', () => {
             BMW_CONFIG.trainNumber = document.getElementById('bmw-status-train').value.trim();
             BMW_CONFIG.classCode = document.getElementById('bmw-status-class').value;
@@ -264,7 +265,6 @@
         const countdownTitle = document.getElementById('bmw-countdown-title');
         const countdownTime = document.getElementById('bmw-countdown-time');
 
-        // Hide Status, Show Timer in same place
         if (statusWrapper && timerWrapper && countdownTitle) {
             statusWrapper.style.display = 'none';
             timerWrapper.style.display = 'block';
@@ -276,7 +276,6 @@
             const diff = targetDate - current;
             
             if (diff <= 0) {
-                // Restore Status view once time is up
                 if (statusWrapper && timerWrapper) {
                     timerWrapper.style.display = 'none';
                     statusWrapper.style.display = 'block';
@@ -351,7 +350,7 @@
     // 3. PHASE EXECUTORS
     // ============================================================
     async function executeTrainListPhase() {
-        const { trainNumber, classCode, quota, ACTime, SLTime, GNTime } = BMW_CONFIG;
+        const { trainNumber, classCode, quota } = BMW_CONFIG;
         
         const trainListContainer = await waitFor('app-train-avl-enq', 5000);
         if (!trainListContainer) return;
@@ -371,27 +370,34 @@
 
         if (!foundTrainBlock) return; 
 
-        // TIMING CHECK
+        // ============================================================
+        // FIX: STRICT TIMING CHECK (Ignoring LocalStorage Times)
+        // ============================================================
         const now = new Date();
-        const currentHour = now.getHours();
+        let targetTimeStr = null;
+        let mainTitle = "";
 
-        if (quota.toUpperCase() === "GENERAL" && GNTime) {
-            const[gHour, gMin] = GNTime.split(':').map(Number);
-            if (currentHour >= 5 && (currentHour < gHour || (currentHour === gHour && now.getMinutes() < gMin))) {
-                await smartWaitWithDisplay(GNTime, "GENERAL BOOKING", "Waiting...");
-            }
-        }
-
-        if (quota.toUpperCase().includes("TATKAL")) {
+        if (quota.toUpperCase() === "GENERAL") {
+            targetTimeStr = "08:00:00";
+            mainTitle = "GENERAL BOOKING";
+        } else if (quota.toUpperCase().includes("TATKAL")) {
             const acClasses =["1A", "2A", "3A", "3E", "CC", "EC", "EA"];
             const isAC = acClasses.includes(classCode.toUpperCase());
-            const targetTimeStr = isAC ? ACTime : SLTime;
-            
-            const [tHour, tMin] = targetTimeStr.split(':').map(Number);
-            if (currentHour < tHour || (currentHour === tHour && now.getMinutes() < tMin)) {
-                await smartWaitWithDisplay(targetTimeStr, `TATKAL : ${isAC ? 'AC' : 'NON-AC'}`, `Class: ${classCode}`);
+            targetTimeStr = isAC ? "10:00:00" : "11:00:00";
+            mainTitle = `TATKAL : ${isAC ? 'AC' : 'NON-AC'}`;
+        }
+
+        if (targetTimeStr) {
+            const[tHour, tMin, tSec] = targetTimeStr.split(':').map(Number);
+            const targetDate = new Date();
+            targetDate.setHours(tHour, tMin, tSec || 0, 0);
+
+            // Wait if current time is before strictly defined target time
+            if (now < targetDate) {
+                await smartWaitWithDisplay(targetTimeStr, mainTitle, `Class: ${classCode}`);
             }
         }
+        // ============================================================
 
         updateReqStatus("CLICKING REFRESH...");
         let booked = false;
@@ -552,6 +558,51 @@
         }
     }
 
+    async function executePaymentPhase() {
+        if (window.paymentExecuted) return;
+        updateReqStatus("AUTO SELECTING PAYMENT GATEWAY...");
+        await waitFor('app-payment', 5000);
+        await humanSleep(180, 100); 
+
+        const step1Xpath = '//*[@id="pay-type"]/span/div[3]/span';
+        let step1El = getElementByXPath(step1Xpath) || Array.from(document.querySelectorAll('span')).find(el => el.innerText.trim() === 'BHIM/ UPI/ USSD');
+        if (step1El) {
+            await humanClick(step1El);
+            await humanSleep(230, 150); 
+        }
+        const step2Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[2]/div/div/div[2]/button';
+        let step2El = getElementByXPath(step2Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
+        if (step2El && window.getComputedStyle(step2El).display !== 'none') {
+            await humanClick(step2El);
+            await humanSleep(215, 150);
+        }
+
+        let step3El = null;
+        const allBankTexts = document.querySelectorAll('.bank-text span');
+        for (let i = 0; i < allBankTexts.length; i++) {
+            if (allBankTexts[i].innerText.toUpperCase().includes('PAYTM')) {
+                step3El = allBankTexts[i].closest('.border-all') || allBankTexts[i].closest('div[tabindex="0"]') || allBankTexts[i];
+                break;
+            }
+        }
+        if (!step3El) {
+            const step3Xpath = '//*[@id="bank-type"]/div/table/tr/span[2]/td/div/div';
+            step3El = getElementByXPath(step3Xpath) || document.querySelector('#bank-type span:nth-of-type(2) div > div');
+        }
+        if (step3El) {
+            await humanClick(step3El);
+            await humanSleep(210, 150);
+        }
+        
+        const step4Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[1]/div/div/div[2]/div[2]/button';
+        let step4El = getElementByXPath(step4Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
+        if (step4El) {
+            await humanClick(step4El);
+            window.paymentExecuted = true;
+            updateReqStatus("PAYMENT INITIATED!");
+            await humanSleep(200, 100);
+        }
+    }
 
     // ============================================================
     // 4. MAIN ORCHESTRATOR LOOP (SPA Router)
@@ -563,7 +614,6 @@
             const url = window.location.href;
             const uiContainer = document.getElementById('bmw-status-container');
             
-            // ✅ HIDE ON PASSENGER & PAYMENT PAGES
             if (url.includes('booking/psgninput') || url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
                 if (uiContainer) uiContainer.style.display = 'none';
             } else {
@@ -574,6 +624,7 @@
                 updateReqStatus("MANUAL SEARCH PAGE...");
                 window.trainBooked = false; 
                 window.captchaSolved = false;
+                window.paymentExecuted = false; 
             }
             else if (url.includes('booking/train-list')) {
                 if (!window.trainBooked) {
@@ -596,8 +647,12 @@
                     updateReqStatus("VERIFIED! PROCEED TO PAY...");
                 }
             }
-            else if (url.includes('payment/bkgPaymentOptions')) {
-                updateReqStatus("MANUALLY MAKE PAYMENT...");
+            else if (url.includes('payment/bkgPaymentOptions') || url.includes('payment')) {
+                if (!window.paymentExecuted) {
+                    await executePaymentPhase();
+                } else {
+                    updateReqStatus("PAYMENT COMPLETED...");
+                }
             }
             else {
                 updateReqStatus("IDLE / WAITING...");
