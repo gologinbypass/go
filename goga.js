@@ -558,51 +558,7 @@
         }
     }
 
-    async function executePaymentPhase() {
-        if (window.paymentExecuted) return;
-        updateReqStatus("AUTO SELECTING PAYMENT GATEWAY...");
-        await waitFor('app-payment', 5000);
-        await humanSleep(180, 100); 
-
-        const step1Xpath = '//*[@id="pay-type"]/span/div[3]/span';
-        let step1El = getElementByXPath(step1Xpath) || Array.from(document.querySelectorAll('span')).find(el => el.innerText.trim() === 'BHIM/ UPI/ USSD');
-        if (step1El) {
-            await humanClick(step1El);
-            await humanSleep(230, 150); 
-        }
-        const step2Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[2]/div/div/div[2]/button';
-        let step2El = getElementByXPath(step2Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.trim() === 'Continue');
-        if (step2El && window.getComputedStyle(step2El).display !== 'none') {
-            await humanClick(step2El);
-            await humanSleep(215, 150);
-        }
-
-        let step3El = null;
-        const allBankTexts = document.querySelectorAll('.bank-text span');
-        for (let i = 0; i < allBankTexts.length; i++) {
-            if (allBankTexts[i].innerText.toUpperCase().includes('PAYTM')) {
-                step3El = allBankTexts[i].closest('.border-all') || allBankTexts[i].closest('div[tabindex="0"]') || allBankTexts[i];
-                break;
-            }
-        }
-        if (!step3El) {
-            const step3Xpath = '//*[@id="bank-type"]/div/table/tr/span[2]/td/div/div';
-            step3El = getElementByXPath(step3Xpath) || document.querySelector('#bank-type span:nth-of-type(2) div > div');
-        }
-        if (step3El) {
-            await humanClick(step3El);
-            await humanSleep(210, 150);
-        }
-        
-        const step4Xpath = '//*[@id="psgn-form"]/div[1]/div[1]/app-payment/div[1]/div/form/p-sidebar[1]/div/div/div[2]/div[2]/button';
-        let step4El = getElementByXPath(step4Xpath) || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes('Pay & Book'));
-        if (step4El) {
-            await humanClick(step4El);
-            window.paymentExecuted = true;
-            updateReqStatus("PAYMENT INITIATED!");
-            await humanSleep(200, 100);
-        }
-    }
+    
 
     // ============================================================
     // 4. MAIN ORCHESTRATOR LOOP (SPA Router)
