@@ -1,0 +1,41 @@
+{
+  "categories": [
+    {
+      "id": "horror-story",
+      "name": "भूतिया हवेली",
+      "cover": "https://picsum.photos/seed/horror1/400/500",
+      "description": "एक डरावनी हवेली की कहानी जो रातों को जागती है",
+      "episodes": [
+        {
+          "id": "h-ep1",
+          "number": 1,
+          "title": "हवेली का राज़",
+          "textUrl": "https://files.catbox.moe/ABCD12.txt",
+          "duration": "45"
+        },
+        {
+          "id": "h-ep2",
+          "number": 2,
+          "title": "रात की आवाज़ें",
+          "textUrl": "https://files.catbox.moe/EFGH34.txt",
+          "duration": "50"
+        }
+      ]
+    },
+    {
+      "id": "romance-story",
+      "name": "दिल की धड़कन",
+      "cover": "https://picsum.photos/seed/romance1/400/500",
+      "description": "प्यार की अनोखी कहानी",
+      "episodes": [
+        {
+          "id": "r-ep1",
+          "number": 1,
+          "title": "पहली मुलाकात",
+          "textUrl": "https://files.catbox.moe/IJKL56.txt",
+          "duration": "40"
+        }
+      ]
+    }
+  ]
+}
