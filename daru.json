@@ -2,14 +2,29 @@
 {
   "licenses": [
     {
-      "name": "Admin",
+      "name": "ADMIN",
       "key": "ADMIN808020",
       "expiry": "2026-12-31"
     },
     {
-      "name": "Customer 2",
-      "key": "XYZ1-9999-ABCD-0000",
-      "expiry": "2026-05-15"
+      "name": "MUSTAK AHAMED",
+      "key": "MUSTAK1280",
+      "expiry": "2026-06-25"
+    },
+        {
+      "name": "MOTI",
+      "key": "MOTI80201",
+      "expiry": "2026-06-25"
+    },
+    {
+      "name": "ARYAN",
+      "key": "ARYAN2050",
+      "expiry": "2026-06-25"
+    },
+    {
+      "name": "NAYEEM",
+      "key": "NAYEEM80212",
+      "expiry": "2026-06-25"
     }
   ]
 }
