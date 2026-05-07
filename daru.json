@@ -1,1 +1,15 @@
 
+{
+  "licenses": [
+    {
+      "name": "Admin",
+      "key": "ADMIN808020",
+      "expiry": "2026-12-31"
+    },
+    {
+      "name": "Customer 2",
+      "key": "XYZ1-9999-ABCD-0000",
+      "expiry": "2026-05-15"
+    }
+  ]
+}
